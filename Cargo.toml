@@ -1,7 +1,7 @@
 [package]
 name = "fs4"
 # NB: When modifying, also modify html_root_url in lib.rs
-version = "0.6.3"
+version = "0.6.4"
 authors = ["Dan Burkert <dan@danburkert.com>", "Al Liu <scygliu1@gmail.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/al8n/fs4-rs"
@@ -22,7 +22,7 @@ smol-async = ["smol", "async-trait"]
 libc = "0.2"
 
 [target.'cfg(not(windows))'.dependencies]
-rustix = { version = "0.35.7", features = ["fs"] }
+rustix = { version = "0.37.6", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["handleapi", "processthreadsapi", "winerror", "fileapi", "winbase", "std"] }
