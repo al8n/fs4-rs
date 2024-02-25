@@ -22,7 +22,7 @@ smol = ["dep:smol", "async-trait"]
 rustix = { version = "0.38", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.48.0"
+version = "0.52"
 features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
@@ -31,15 +31,16 @@ features = [
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
-async-std = { version = "1.12", optional = true }
-smol = { version = "2.0", optional = true }
-tokio = { version = "1.32", optional = true, default-features = false, features = ["fs"] }
+async-std = { version = "1", optional = true }
+smol = { version = "2", optional = true }
+tokio = { version = "1", optional = true, default-features = false, features = ["fs"] }
+
 
 [dev-dependencies]
-async-std = { version = "1.12", features = ["attributes"] }
+async-std = { version = "1", features = ["attributes"] }
 smol-potat = "1.1"
 tempdir = "0.3"
-tokio = { version = "1.19", features = ["full"]}
+tokio = { version = "1", features = ["full"]}
 libc = "0.2"
 
 [package.metadata.docs.rs]

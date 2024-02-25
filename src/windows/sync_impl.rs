@@ -73,7 +73,7 @@ mod test {
             .read(true)
             .write(true)
             .create(true)
-            .open(&path)
+            .open(path)
             .unwrap();
 
         // Multiple exclusive locks fails.
@@ -102,7 +102,7 @@ mod test {
             .read(true)
             .write(true)
             .create(true)
-            .open(&path)
+            .open(path)
             .unwrap();
 
         // Open two shared locks on the file, and then try and fail to open an exclusive lock.

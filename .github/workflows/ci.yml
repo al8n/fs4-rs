@@ -20,6 +20,7 @@ on:
       - 'LICENSE-*'
       - '**.md'
       - '**.txt'
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -78,7 +79,8 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: test all features
-        run: cargo test --all-features
+        # Run sequentially to avoid race condition around file system size
+        run: cargo test --all-features -- --test-threads 1
 
   coverage:
     name: cargo tarpaulin
@@ -119,7 +121,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
-          
+
   docs:
     name: docs
     runs-on: ubuntu-latest
