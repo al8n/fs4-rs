@@ -23,25 +23,25 @@ This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the 
 - std 
     ```toml
     [dependencies]
-    fs4 = { version = "0.7", features = ["sync"] }
+    fs4 = { version = "0.8", features = ["sync"] }
     ```
   
 - [tokio runtime](https://crates.io/crates/tokio)
     ```toml
     [dependencies]
-    fs4 = { version = "0.7", features = ["tokio"] }
+    fs4 = { version = "0.8", features = ["tokio"] }
     ```
 
 - [async-std runtime](https://crates.io/crates/async-std)
     ```toml
     [dependencies]
-    fs4 = { version = "0.7", features = ["async-std"] }
+    fs4 = { version = "0.8", features = ["async-std"] }
     ```
 
 - [smol runtime](https://crates.io/crates/smol)
     ```toml
     [dependencies]
-    fs4 = { version = "0.7", features = ["smol"] }
+    fs4 = { version = "0.8", features = ["smol"] }
     ```
 
 ## Features
