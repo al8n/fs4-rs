@@ -1,6 +1,7 @@
 macro_rules! allocate {
     ($file: ty) => {
         #[cfg(any(
+            target_os = "aix",
             target_os = "linux",
             target_os = "freebsd",
             target_os = "android",
