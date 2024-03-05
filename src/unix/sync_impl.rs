@@ -34,6 +34,7 @@ pub fn allocate(file: &File, len: u64) -> std::io::Result<()> {
 }
 
 #[cfg(any(
+    target_os = "aix",
     target_os = "openbsd",
     target_os = "netbsd",
     target_os = "dragonfly",
