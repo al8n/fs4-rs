@@ -20,9 +20,9 @@ mod test {
     async fn lock_shared() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).await.unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).await.unwrap();
-        let file3 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).await.unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file3 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
 
         // Concurrent shared access is OK, but not shared and exclusive.
         file1.lock_shared().unwrap();
@@ -43,8 +43,8 @@ mod test {
     async fn lock_exclusive() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).await.unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).await.unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
 
         // No other access is possible once an exclusive lock is created.
         file1.lock_exclusive().unwrap();
@@ -63,8 +63,8 @@ mod test {
     async fn lock_cleanup() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).await.unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).open(&path).await.unwrap();
+        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
 
         file1.lock_exclusive().unwrap();
         assert_eq!(file2.try_lock_shared().unwrap_err().kind(),
@@ -80,7 +80,7 @@ mod test {
     async fn allocate() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file = fs::OpenOptions::new().write(true).create(true).open(&path).await.unwrap();
+        let file = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path).await.unwrap();
         let blksize = allocation_granularity(&path).unwrap();
 
         // New files are created with no allocated size.

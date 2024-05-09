@@ -21,8 +21,8 @@ mod test {
     async fn lock_replace() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().write(true).create(true).open(&path).await.unwrap();
-        let file2 = fs::OpenOptions::new().write(true).create(true).open(&path).await.unwrap();
+        let file1 = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file2 = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path).await.unwrap();
 
         // Creating a shared lock will drop an exclusive lock.
         file1.lock_exclusive().unwrap();

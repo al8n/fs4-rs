@@ -1,7 +1,8 @@
 [package]
 name = "fs4"
 # NB: When modifying, also modify html_root_url in lib.rs
-version = "0.8.2"
+version = "0.8.3"
+rust-version = "1.75.0"
 authors = ["Dan Burkert <dan@danburkert.com>", "Al Liu <scygliu1@gmail.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/al8n/fs4-rs"
@@ -14,9 +15,9 @@ edition = "2021"
 [features]
 default = ["sync"]
 sync = []
-async-std = ["dep:async-std", "async-trait"]
-tokio = ["dep:tokio", "async-trait"]
-smol = ["dep:smol", "async-trait"]
+async-std = ["dep:async-std"]
+tokio = ["dep:tokio"]
+smol = ["dep:smol"]
 
 [target.'cfg(not(windows))'.dependencies]
 rustix = { version = "0.38", features = ["fs"] }
@@ -30,7 +31,6 @@ features = [
 ]
 
 [dependencies]
-async-trait = { version = "0.1", optional = true }
 async-std = { version = "1", optional = true }
 smol = { version = "2", optional = true }
 tokio = { version = "1", optional = true, default-features = false, features = ["fs"] }

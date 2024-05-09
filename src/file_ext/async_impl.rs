@@ -27,18 +27,17 @@ macro_rules! async_file_ext {
         /// platform-specific behavior. File locks are implemented with
         /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
         /// [`LockFile`](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365202(v=vs.85).aspx)
-        /// on Windows.
-        #[async_trait::async_trait]
+        /// on Windows. 
         pub trait AsyncFileExt {
 
             /// Returns the amount of physical space allocated for a file.
-            async fn allocated_size(&self) -> Result<u64>;
+            fn allocated_size(&self) -> impl core::future::Future<Output = Result<u64>>;
 
             /// Ensures that at least `len` bytes of disk space are allocated for the
             /// file, and the file size is at least `len` bytes. After a successful call
             /// to `allocate`, subsequent writes to the file within the specified length
             /// are guaranteed not to fail because of lack of disk space.
-            async fn allocate(&self, len: u64) -> Result<()>;
+            fn allocate(&self, len: u64) -> impl core::future::Future<Output = Result<()>>;
 
             /// Locks the file for shared usage, blocking if the file is currently
             /// locked exclusively.
@@ -60,7 +59,6 @@ macro_rules! async_file_ext {
             fn unlock(&self) -> Result<()>;
         }
 
-        #[async_trait::async_trait]
         impl AsyncFileExt for $file {
             async fn allocated_size(&self) -> Result<u64> {
                 sys::allocated_size(self).await

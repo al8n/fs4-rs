@@ -68,10 +68,12 @@ mod test {
         let file1 = fs::OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&path)
             .unwrap();
         let file2 = fs::OpenOptions::new()
             .write(true)
+            .truncate(true)
             .create(true)
             .open(&path)
             .unwrap();
