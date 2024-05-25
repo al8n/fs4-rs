@@ -94,7 +94,7 @@ mod test {
 
     use std::fs;
     use super::*;
-    use crate::{allocation_granularity, available_space, free_space, lock_contended_error, total_space};
+    use crate::{allocation_granularity, available_space, free_space, lock_contended_error, statvfs, total_space, FsStats};
 
     /// Tests shared file lock operations.
     #[test]
@@ -187,9 +187,12 @@ mod test {
     #[test]
     fn filesystem_space() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
-        let total_space = total_space(tempdir.path()).unwrap();
-        let free_space = free_space(tempdir.path()).unwrap();
-        let available_space = available_space(tempdir.path()).unwrap();
+        let FsStats {
+            free_space,
+            available_space,
+            total_space,
+            ..
+        } = statvfs(tempdir.path()).unwrap();
 
         assert!(total_space > free_space);
         assert!(total_space > available_space);
