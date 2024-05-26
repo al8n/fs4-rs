@@ -35,12 +35,11 @@ async-std = { version = "1", optional = true }
 smol = { version = "2", optional = true }
 tokio = { version = "1", optional = true, default-features = false, features = ["fs"] }
 
-
 [dev-dependencies]
 async-std = { version = "1", features = ["attributes"] }
 smol-potat = "1.1"
 tempdir = "0.3"
-tokio = { version = "1", features = ["full"]}
+tokio = { version = "1", features = ["full"] }
 libc = "0.2"
 
 [package.metadata.docs.rs]

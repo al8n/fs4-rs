@@ -1,8 +1,8 @@
-use tokio::fs::File;
 #[cfg(unix)]
 use crate::unix::async_impl::tokio_impl as sys;
 #[cfg(windows)]
 use crate::windows::async_impl::tokio_impl as sys;
+use tokio::fs::File;
 
 async_file_ext!(File, "tokio::fs::File");
 
@@ -12,26 +12,54 @@ mod test {
     extern crate tempdir;
     extern crate test;
 
+    use crate::{
+        allocation_granularity, available_space, free_space, lock_contended_error,
+        tokio::AsyncFileExt, total_space,
+    };
     use tokio::fs;
-    use crate::{allocation_granularity, available_space, tokio::AsyncFileExt, free_space, lock_contended_error, total_space}; 
 
     /// Tests shared file lock operations.
     #[tokio::test]
     async fn lock_shared() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
-        let file3 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file1 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
+        let file2 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
+        let file3 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
 
         // Concurrent shared access is OK, but not shared and exclusive.
         file1.lock_shared().unwrap();
         file2.lock_shared().unwrap();
-        assert_eq!(file3.try_lock_exclusive().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file3.try_lock_exclusive().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
         file1.unlock().unwrap();
-        assert_eq!(file3.try_lock_exclusive().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file3.try_lock_exclusive().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
 
         // Once all shared file locks are dropped, an exclusive lock may be created;
         file2.unlock().unwrap();
@@ -43,15 +71,33 @@ mod test {
     async fn lock_exclusive() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file1 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
+        let file2 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
 
         // No other access is possible once an exclusive lock is created.
         file1.lock_exclusive().unwrap();
-        assert_eq!(file2.try_lock_exclusive().unwrap_err().kind(),
-                   lock_contended_error().kind());
-        assert_eq!(file2.try_lock_shared().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file2.try_lock_exclusive().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
+        assert_eq!(
+            file2.try_lock_shared().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
 
         // Once the exclusive lock is dropped, the second file is able to create a lock.
         file1.unlock().unwrap();
@@ -63,12 +109,28 @@ mod test {
     async fn lock_cleanup() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file1 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
+        let file2 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
 
         file1.lock_exclusive().unwrap();
-        assert_eq!(file2.try_lock_shared().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file2.try_lock_shared().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
 
         // Drop file1; the lock should be released.
         drop(file1);
@@ -80,7 +142,13 @@ mod test {
     async fn allocate() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path).await.unwrap();
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .await
+            .unwrap();
         let blksize = allocation_granularity(&path).unwrap();
 
         // New files are created with no allocated size.
