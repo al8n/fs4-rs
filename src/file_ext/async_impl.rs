@@ -27,7 +27,7 @@ macro_rules! async_file_ext {
         /// platform-specific behavior. File locks are implemented with
         /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
         /// [`LockFile`](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365202(v=vs.85).aspx)
-        /// on Windows. 
+        /// on Windows.
         pub trait AsyncFileExt {
 
             /// Returns the amount of physical space allocated for a file.
@@ -96,4 +96,3 @@ cfg_smol! {
 cfg_tokio! {
     pub(crate) mod tokio_impl;
 }
-
