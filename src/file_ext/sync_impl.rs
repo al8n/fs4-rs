@@ -1,9 +1,9 @@
-use std::fs::File;
-use std::io::Result;
 #[cfg(unix)]
 use crate::unix::sync_impl as sys;
 #[cfg(windows)]
 use crate::windows::sync_impl as sys;
+use std::fs::File;
+use std::io::Result;
 
 /// Extension trait for `std::fs::File` which provides allocation, duplication and locking methods.
 ///
@@ -31,8 +31,7 @@ use crate::windows::sync_impl as sys;
 /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
 /// [`LockFile`](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365202(v=vs.85).aspx)
 /// on Windows.
-pub trait FileExt { 
-
+pub trait FileExt {
     /// Returns the amount of physical space allocated for a file.
     fn allocated_size(&self) -> Result<u64>;
 
@@ -92,27 +91,52 @@ mod test {
     extern crate tempdir;
     extern crate test;
 
-    use std::fs;
     use super::*;
-    use crate::{allocation_granularity, available_space, free_space, lock_contended_error, statvfs, total_space, FsStats};
+    use crate::{
+        allocation_granularity, available_space, free_space, lock_contended_error, statvfs,
+        total_space, FsStats,
+    };
+    use std::fs;
 
     /// Tests shared file lock operations.
     #[test]
     fn lock_shared() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
-        let file3 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
+        let file2 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
+        let file3 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
 
         // Concurrent shared access is OK, but not shared and exclusive.
         file1.lock_shared().unwrap();
         file2.lock_shared().unwrap();
-        assert_eq!(file3.try_lock_exclusive().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file3.try_lock_exclusive().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
         file1.unlock().unwrap();
-        assert_eq!(file3.try_lock_exclusive().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file3.try_lock_exclusive().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
 
         // Once all shared file locks are dropped, an exclusive lock may be created;
         file2.unlock().unwrap();
@@ -124,15 +148,31 @@ mod test {
     fn lock_exclusive() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
+        let file2 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
 
         // No other access is possible once an exclusive lock is created.
         file1.lock_exclusive().unwrap();
-        assert_eq!(file2.try_lock_exclusive().unwrap_err().kind(),
-                   lock_contended_error().kind());
-        assert_eq!(file2.try_lock_shared().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file2.try_lock_exclusive().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
+        assert_eq!(
+            file2.try_lock_shared().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
 
         // Once the exclusive lock is dropped, the second file is able to create a lock.
         file1.unlock().unwrap();
@@ -144,12 +184,26 @@ mod test {
     fn lock_cleanup() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file1 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
-        let file2 = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&path).unwrap();
+        let file1 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
+        let file2 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
 
         file1.lock_exclusive().unwrap();
-        assert_eq!(file2.try_lock_shared().unwrap_err().kind(),
-                   lock_contended_error().kind());
+        assert_eq!(
+            file2.try_lock_shared().unwrap_err().kind(),
+            lock_contended_error().kind()
+        );
 
         // Drop file1; the lock should be released.
         drop(file1);
@@ -161,7 +215,12 @@ mod test {
     fn allocate() {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path).unwrap();
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
         let blksize = allocation_granularity(&path).unwrap();
 
         // New files are created with no allocated size.
@@ -210,7 +269,8 @@ mod test {
             fs::OpenOptions::new()
                 .read(true)
                 .write(true)
-                .create(true).truncate(true)
+                .create(true)
+                .truncate(true)
                 .open(&path)
                 .unwrap();
             fs::remove_file(&path).unwrap();
@@ -228,7 +288,8 @@ mod test {
             let file = fs::OpenOptions::new()
                 .read(true)
                 .write(true)
-                .create(true).truncate(true)
+                .create(true)
+                .truncate(true)
                 .open(&path)
                 .unwrap();
             file.set_len(size).unwrap();
@@ -247,7 +308,8 @@ mod test {
             let file = fs::OpenOptions::new()
                 .read(true)
                 .write(true)
-                .create(true).truncate(true)
+                .create(true)
+                .truncate(true)
                 .open(&path)
                 .unwrap();
             file.allocate(size).unwrap();
@@ -264,7 +326,8 @@ mod test {
         let file = fs::OpenOptions::new()
             .read(true)
             .write(true)
-            .create(true).truncate(true)
+            .create(true)
+            .truncate(true)
             .open(path)
             .unwrap();
         file.allocate(size).unwrap();
@@ -272,14 +335,20 @@ mod test {
         b.iter(|| {
             file.allocated_size().unwrap();
         });
-    } 
+    }
 
     /// Benchmarks locking and unlocking a file lock.
     #[bench]
     fn bench_lock_unlock(b: &mut test::Bencher) {
         let tempdir = tempdir::TempDir::new("fs4").unwrap();
         let path = tempdir.path().join("fs4");
-        let file = fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(path).unwrap();
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)
+            .unwrap();
 
         b.iter(|| {
             file.lock_exclusive().unwrap();
