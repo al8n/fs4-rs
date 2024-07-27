@@ -48,9 +48,14 @@ macro_rules! lock_impl {
     };
 }
 
-#[cfg(any(feature = "smol", feature = "async-std", feature = "tokio"))]
+#[cfg(any(
+    feature = "smol",
+    feature = "async-std",
+    feature = "tokio",
+    feature = "fs-err-tokio"
+))]
 pub(crate) mod async_impl;
-#[cfg(feature = "sync")]
+#[cfg(any(feature = "sync", feature = "fs-err"))]
 pub(crate) mod sync_impl;
 
 use crate::FsStats;

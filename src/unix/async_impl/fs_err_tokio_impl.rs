@@ -1,4 +1,4 @@
-use async_std::fs::File;
+use fs_err::tokio::File;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::io::AsRawFd;
 
@@ -7,7 +7,7 @@ allocate!(File);
 allocate_size!(File);
 
 test_mod! {
-  async_std::test,
-  use crate::async_std::AsyncFileExt;
-  use async_std::fs;
+  tokio::test,
+  use crate::fs_err_tokio::AsyncFileExt;
+  use fs_err::tokio as fs;
 }

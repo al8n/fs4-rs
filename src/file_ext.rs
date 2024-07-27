@@ -1,6 +1,5 @@
 cfg_sync!(
-    mod sync_impl;
-    pub use sync_impl::FileExt;
+    pub(crate) mod sync_impl;
 );
 
 cfg_async!(

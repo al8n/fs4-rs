@@ -20,16 +20,10 @@ This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the 
 </div>
 
 ## Installation
-- std 
+- std
     ```toml
     [dependencies]
     fs4 = { version = "0.8", features = ["sync"] }
-    ```
-  
-- [tokio runtime](https://crates.io/crates/tokio)
-    ```toml
-    [dependencies]
-    fs4 = { version = "0.8", features = ["tokio"] }
     ```
 
 - [async-std runtime](https://crates.io/crates/async-std)
@@ -38,10 +32,28 @@ This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the 
     fs4 = { version = "0.8", features = ["async-std"] }
     ```
 
+- [fs-err](https://crates.io/crates/fs-err)
+    ```toml
+    [dependencies]
+    fs4 = { version = "0.8", features = ["fs-err"] }
+    ```
+
+- [fs-err-tokio](https://crates.io/crates/fs-err)
+    ```toml
+    [dependencies]
+    fs4 = { version = "0.8", features = ["fs-err-tokio"] }
+    ```
+
 - [smol runtime](https://crates.io/crates/smol)
     ```toml
     [dependencies]
     fs4 = { version = "0.8", features = ["smol"] }
+    ```
+
+- [tokio runtime](https://crates.io/crates/tokio)
+    ```toml
+    [dependencies]
+    fs4 = { version = "0.8", features = ["tokio"] }
     ```
 
 ## Features
@@ -50,9 +62,10 @@ This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the 
 - [x] file (pre)allocation.
 - [x] file allocation information.
 - [x] filesystem space usage information.
-- [x] [tokio support](https://crates.io/crates/tokio)
-- [x] [smol support](https://crates.io/crates/smol)
 - [x] [async-std support](https://crates.io/crates/async-std)
+- [x] [fs-err](https://crates.io/crates/fs-err)
+- [x] [smol support](https://crates.io/crates/smol)
+- [x] [tokio support](https://crates.io/crates/tokio)
 
 ## License
 
@@ -71,4 +84,3 @@ Copyright (c) 2015 Dan Burkert.
 [doc-url]: https://docs.rs/fs4
 [crates-url]: https://crates.io/crates/fs4
 [codecov-url]: https://app.codecov.io/gh/al8n/fs4-rs/
-

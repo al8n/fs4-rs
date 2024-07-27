@@ -18,25 +18,27 @@ sync = []
 async-std = ["dep:async-std"]
 tokio = ["dep:tokio"]
 smol = ["dep:smol"]
+fs-err = ["dep:fs-err", "fs-err/io_safety"]
+fs-err-tokio = ["fs-err", "fs-err/tokio"]
 
 [target.'cfg(not(windows))'.dependencies]
 rustix = { version = "0.38", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.52"
-features = [
-    "Win32_Foundation",
-    "Win32_Storage_FileSystem",
-    "Win32_System_IO"
-]
+features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO"]
 
 [dependencies]
 async-std = { version = "1", optional = true }
+fs-err = { version = "2", optional = true }
 smol = { version = "2", optional = true }
-tokio = { version = "1", optional = true, default-features = false, features = ["fs"] }
+tokio = { version = "1", optional = true, default-features = false, features = [
+  "fs",
+] }
 
 [dev-dependencies]
 async-std = { version = "1", features = ["attributes"] }
+fs-err = { version = "2", features = ["io_safety", "tokio"] }
 smol-potat = "1.1"
 tempdir = "0.3"
 tokio = { version = "1", features = ["full"] }

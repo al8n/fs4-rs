@@ -9,7 +9,7 @@ use windows_sys::Win32::Storage::FileSystem::{
     LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY,
 };
 
-use tokio::fs::File;
+use fs_err::tokio::File;
 
 lock_impl!(File);
 allocate!(File);
@@ -17,6 +17,6 @@ allocate_size!(File);
 
 test_mod! {
   tokio::test,
-  use crate::tokio::AsyncFileExt;
-  use tokio::fs;
+  use crate::fs_err_tokio::AsyncFileExt;
+  use fs_err::tokio as fs;
 }

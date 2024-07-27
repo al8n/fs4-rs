@@ -1,4 +1,4 @@
-use async_std::fs::File;
+use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::io::AsRawFd;
 
@@ -7,7 +7,6 @@ allocate!(File);
 allocate_size!(File);
 
 test_mod! {
-  async_std::test,
-  use crate::async_std::AsyncFileExt;
-  use async_std::fs;
+  use crate::fs_std::FileExt;
+  use std::fs;
 }
