@@ -23,37 +23,37 @@ This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the 
 - std
     ```toml
     [dependencies]
-    fs4 = { version = "0.8", features = ["sync"] }
+    fs4 = { version = "0.9", features = ["sync"] }
     ```
 
 - [async-std runtime](https://crates.io/crates/async-std)
     ```toml
     [dependencies]
-    fs4 = { version = "0.8", features = ["async-std"] }
+    fs4 = { version = "0.9", features = ["async-std"] }
     ```
 
 - [fs-err](https://crates.io/crates/fs-err)
     ```toml
     [dependencies]
-    fs4 = { version = "0.8", features = ["fs-err"] }
+    fs4 = { version = "0.9", features = ["fs-err"] }
     ```
 
 - [fs-err-tokio](https://crates.io/crates/fs-err)
     ```toml
     [dependencies]
-    fs4 = { version = "0.8", features = ["fs-err-tokio"] }
+    fs4 = { version = "0.9", features = ["fs-err-tokio"] }
     ```
 
 - [smol runtime](https://crates.io/crates/smol)
     ```toml
     [dependencies]
-    fs4 = { version = "0.8", features = ["smol"] }
+    fs4 = { version = "0.9", features = ["smol"] }
     ```
 
 - [tokio runtime](https://crates.io/crates/tokio)
     ```toml
     [dependencies]
-    fs4 = { version = "0.8", features = ["tokio"] }
+    fs4 = { version = "0.9", features = ["tokio"] }
     ```
 
 ## Features
