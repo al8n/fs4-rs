@@ -16,6 +16,6 @@ allocate!(File);
 allocate_size!(File);
 
 test_mod! {
-  use crate::FileExt;
+  use crate::fs_err::FileExt;
   use fs_err as fs;
 }

@@ -68,7 +68,7 @@ macro_rules! cfg_sync {
   }
 }
 
-macro_rules! cfg_sync_fs_err {
+macro_rules! cfg_fs_err {
     ($($item:item)*) => {
         $(
             #[cfg(feature = "fs-err")]
@@ -107,7 +107,7 @@ cfg_sync!(
     }
 );
 
-cfg_sync_fs_err!(
+cfg_fs_err!(
     pub mod fs_err {
         pub use crate::file_ext::sync_impl::fs_err_impl::FileExt;
     }
