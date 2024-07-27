@@ -57,6 +57,6 @@ cfg_sync! {
     pub(crate) mod std_impl;
 }
 
-cfg_sync! {
+cfg_fs_err! {
     pub(crate) mod fs_err_impl;
 }
