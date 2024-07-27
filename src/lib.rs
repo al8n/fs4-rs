@@ -18,6 +18,8 @@ macro_rules! cfg_async_std {
     }
 }
 
+// This lint is a bug, it is being used in multiple places.
+#[allow(unused_macros)]
 macro_rules! cfg_fs_err {
     ($($item:item)*) => {
         $(
