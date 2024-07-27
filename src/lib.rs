@@ -18,6 +18,26 @@ macro_rules! cfg_async_std {
     }
 }
 
+macro_rules! cfg_fs_err {
+    ($($item:item)*) => {
+        $(
+            #[cfg(feature = "fs-err")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err")))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_fs_err_tokio {
+    ($($item:item)*) => {
+        $(
+            #[cfg(feature = "fs-err-tokio")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err-tokio")))]
+            $item
+        )*
+    }
+}
+
 macro_rules! cfg_smol {
     ($($item:item)*) => {
         $(
@@ -39,10 +59,20 @@ macro_rules! cfg_tokio {
 }
 
 macro_rules! cfg_sync {
+  ($($item:item)*) => {
+      $(
+          #[cfg(feature = "sync")]
+          #[cfg_attr(docsrs, doc(cfg(feature = "sync")))]
+          $item
+      )*
+  }
+}
+
+macro_rules! cfg_sync_fs_err {
     ($($item:item)*) => {
         $(
-            #[cfg(feature = "sync")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "sync")))]
+            #[cfg(feature = "fs-err")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err")))]
             $item
         )*
     }
@@ -51,8 +81,8 @@ macro_rules! cfg_sync {
 macro_rules! cfg_async {
     ($($item:item)*) => {
         $(
-            #[cfg(any(feature = "smol", feature = "async-std", feature = "tokio"))]
-            #[cfg_attr(docsrs, doc(cfg(any(feature = "smol", feature = "async-std", feature = "tokio"))))]
+            #[cfg(any(feature = "smol", feature = "async-std", feature = "tokio", feature = "fs-err-tokio"))]
+            #[cfg_attr(docsrs, doc(cfg(any(feature = "smol", feature = "async-std", feature = "tokio", "fs-err-tokio"))))]
             $item
         )*
     }
@@ -70,12 +100,28 @@ mod windows;
 use windows as sys;
 
 mod file_ext;
-#[cfg(feature = "sync")]
-pub use file_ext::FileExt;
+
+cfg_sync!(
+    pub mod fs_std {
+        pub use crate::file_ext::sync_impl::std_impl::FileExt;
+    }
+);
+
+cfg_sync_fs_err!(
+    pub mod fs_err {
+        pub use crate::file_ext::sync_impl::fs_err_impl::FileExt;
+    }
+);
 
 cfg_async_std!(
     pub mod async_std {
         pub use crate::file_ext::async_impl::async_std_impl::AsyncFileExt;
+    }
+);
+
+cfg_fs_err_tokio!(
+    pub mod fs_err_tokio {
+        pub use crate::file_ext::async_impl::fs_err_tokio_impl::AsyncFileExt;
     }
 );
 

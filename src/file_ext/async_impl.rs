@@ -89,6 +89,10 @@ cfg_async_std! {
     pub(crate) mod async_std_impl;
 }
 
+cfg_fs_err_tokio! {
+    pub(crate) mod fs_err_tokio_impl;
+}
+
 cfg_smol! {
     pub(crate) mod smol_impl;
 }
