@@ -84,7 +84,9 @@ macro_rules! file_ext {
     }
 }
 
-pub(crate) mod std_impl;
+cfg_sync! {
+  pub(crate) mod std_impl;
+}
 
 cfg_fs_err! {
     pub(crate) mod fs_err_impl;
