@@ -1,5 +1,5 @@
 //! Extended utilities for working with files and filesystems in Rust.
-#![doc(html_root_url = "https://docs.rs/fs4/0.9.0")]
+#![doc(html_root_url = "https://docs.rs/fs4/0.9.1")]
 #![cfg_attr(test, feature(test))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
@@ -84,7 +84,7 @@ macro_rules! cfg_async {
     ($($item:item)*) => {
         $(
             #[cfg(any(feature = "smol", feature = "async-std", feature = "tokio", feature = "fs-err-tokio"))]
-            #[cfg_attr(docsrs, doc(cfg(any(feature = "smol", feature = "async-std", feature = "tokio", "fs-err-tokio"))))]
+            #[cfg_attr(docsrs, doc(cfg(any(feature = "smol", feature = "async-std", feature = "tokio", feature = "fs-err-tokio"))))]
             $item
         )*
     }
