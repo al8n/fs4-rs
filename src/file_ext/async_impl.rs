@@ -43,19 +43,53 @@ macro_rules! async_file_ext {
             fn lock_shared(&self) -> Result<()>;
 
             /// Locks the file for exclusive usage, blocking if the file is currently
+            /// locked exclusively.
+            ///
+            /// **Note:** This method is not really "async", the underlying system call is still blocking.
+            /// Having this method as async is just for convenience when using it in async runtime.
+            fn lock_shared_async(&self) -> impl core::future::Future<Output = Result<()>>;
+
+            /// Locks the file for exclusive usage, blocking if the file is currently
             /// locked.
             fn lock_exclusive(&self) -> Result<()>;
+
+            /// Locks the file for exclusive usage, blocking if the file is currently
+            /// locked.
+            ///
+            /// **Note:** This method is not really "async", the underlying system call is still blocking.
+            /// Having this method as async is just for convenience when using it in async runtime.
+            fn lock_exclusive_async(&self) -> impl core::future::Future<Output = Result<()>>;
 
             /// Locks the file for shared usage, or returns an error if the file is
             /// currently locked (see `lock_contended_error`).
             fn try_lock_shared(&self) -> Result<()>;
 
+            /// Locks the file for shared usage, or returns an error if the file is
+            /// currently locked (see `lock_contended_error`).
+            ///
+            /// **Note:** This method is not really "async", the underlying system call is still blocking.
+            /// Having this method as async is just for convenience when using it in async runtime.
+            fn try_lock_shared_async(&self) -> impl core::future::Future<Output = Result<()>>;
+
             /// Locks the file for exclusive usage, or returns an error if the file is
             /// currently locked (see `lock_contended_error`).
             fn try_lock_exclusive(&self) -> Result<()>;
 
+            /// Locks the file for exclusive usage, or returns an error if the file is
+            /// currently locked (see `lock_contended_error`).
+            ///
+            /// **Note:** This method is not really "async", the underlying system call is still blocking.
+            /// Having this method as async is just for convenience when using it in async runtime.
+            fn try_lock_exclusive_async(&self) -> impl core::future::Future<Output = Result<()>>;
+
             /// Unlocks the file.
             fn unlock(&self) -> Result<()>;
+
+            /// Unlocks the file.
+            ///
+            /// **Note:** This method is not really "async", the underlying system call is still blocking.
+            /// Having this method as async is just for convenience when using it in async runtime.
+            fn unlock_async(&self) -> impl core::future::Future<Output = Result<()>>;
         }
 
         impl AsyncFileExt for $file {
@@ -68,16 +102,40 @@ macro_rules! async_file_ext {
             fn lock_shared(&self) -> Result<()> {
                 sys::lock_shared(self)
             }
+
+            async fn lock_shared_async(&self) -> Result<()> {
+                sys::lock_shared(self)
+            }
+
             fn lock_exclusive(&self) -> Result<()> {
                 sys::lock_exclusive(self)
             }
+
+            async fn lock_exclusive_async(&self) -> Result<()> {
+                sys::lock_exclusive(self)
+            }
+
             fn try_lock_shared(&self) -> Result<()> {
                 sys::try_lock_shared(self)
             }
+
+            async fn try_lock_shared_async(&self) -> Result<()> {
+                sys::try_lock_shared(self)
+            }
+
             fn try_lock_exclusive(&self) -> Result<()> {
                 sys::try_lock_exclusive(self)
             }
+
+            async fn try_lock_exclusive_async(&self) -> Result<()> {
+                sys::try_lock_exclusive(self)
+            }
+
             fn unlock(&self) -> Result<()> {
+                sys::unlock(self)
+            }
+
+            async fn unlock_async(&self) -> Result<()> {
                 sys::unlock(self)
             }
         }
@@ -144,6 +202,51 @@ macro_rules! test_mod {
                 file3.lock_exclusive().unwrap();
             }
 
+            /// Tests shared file lock operations.
+            #[$annotation]
+            async fn lock_shared_async() {
+                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file1 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let file2 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let file3 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+
+                // Concurrent shared access is OK, but not shared and exclusive.
+                file1.lock_shared_async().await.unwrap();
+                file2.lock_shared_async().await.unwrap();
+                assert_eq!(
+                    file3.try_lock_exclusive_async().await.unwrap_err().kind(),
+                    lock_contended_error().kind()
+                );
+                file1.unlock_async().await.unwrap();
+                assert_eq!(
+                    file3.try_lock_exclusive_async().await.unwrap_err().kind(),
+                    lock_contended_error().kind()
+                );
+
+                // Once all shared file locks are dropped, an exclusive lock may be created;
+                file2.unlock_async().await.unwrap();
+                file3.lock_exclusive_async().await.unwrap();
+            }
+
             /// Tests exclusive file lock operations.
             #[$annotation]
             async fn lock_exclusive() {
@@ -180,6 +283,42 @@ macro_rules! test_mod {
                 file2.lock_exclusive().unwrap();
             }
 
+            /// Tests exclusive file lock operations.
+            #[$annotation]
+            async fn lock_exclusive_async() {
+                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file1 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let file2 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+
+                // No other access is possible once an exclusive lock is created.
+                file1.lock_exclusive_async().await.unwrap();
+                assert_eq!(
+                    file2.try_lock_exclusive_async().await.unwrap_err().kind(),
+                    lock_contended_error().kind()
+                );
+                assert_eq!(
+                    file2.try_lock_shared_async().await.unwrap_err().kind(),
+                    lock_contended_error().kind()
+                );
+
+                // Once the exclusive lock is dropped, the second file is able to create a lock.
+                file1.unlock_async().await.unwrap();
+                file2.lock_exclusive_async().await.unwrap();
+            }
+
             /// Tests that a lock is released after the file that owns it is dropped.
             #[$annotation]
             async fn lock_cleanup() {
@@ -209,6 +348,37 @@ macro_rules! test_mod {
                 // Drop file1; the lock should be released.
                 drop(file1);
                 file2.lock_shared().unwrap();
+            }
+
+            /// Tests that a lock is released after the file that owns it is dropped.
+            #[$annotation]
+            async fn lock_cleanup_async() {
+                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file1 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let file2 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+
+                file1.lock_exclusive_async().await.unwrap();
+                assert_eq!(
+                    file2.try_lock_shared_async().await.unwrap_err().kind(),
+                    lock_contended_error().kind()
+                );
+
+                // Drop file1; the lock should be released.
+                drop(file1);
+                file2.lock_shared_async().await.unwrap();
             }
 
             /// Tests file allocation.
