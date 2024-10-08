@@ -67,6 +67,10 @@ This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the 
 - [x] [smol support](https://crates.io/crates/smol)
 - [x] [tokio support](https://crates.io/crates/tokio)
 
+## Cross Platform Supports
+
+See `cross` senction in [CI](.github/workflows/ci.yml).
+
 ## License
 
 `fs4` is primarily distributed under the terms of both the MIT license and the
