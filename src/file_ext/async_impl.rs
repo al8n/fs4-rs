@@ -44,7 +44,7 @@ macro_rules! async_file_ext {
 
             /// Locks the file for exclusive usage, blocking if the file is currently
             /// locked exclusively.
-            /// 
+            ///
             /// **Note:** This method is not really "async", the underlying system call is still blocking.
             /// Having this method as async is just for convenience when using it in async runtime.
             fn lock_shared_async(&self) -> impl core::future::Future<Output = Result<()>>;
@@ -55,7 +55,7 @@ macro_rules! async_file_ext {
 
             /// Locks the file for exclusive usage, blocking if the file is currently
             /// locked.
-            /// 
+            ///
             /// **Note:** This method is not really "async", the underlying system call is still blocking.
             /// Having this method as async is just for convenience when using it in async runtime.
             fn lock_exclusive_async(&self) -> impl core::future::Future<Output = Result<()>>;
@@ -66,7 +66,7 @@ macro_rules! async_file_ext {
 
             /// Locks the file for shared usage, or returns an error if the file is
             /// currently locked (see `lock_contended_error`).
-            /// 
+            ///
             /// **Note:** This method is not really "async", the underlying system call is still blocking.
             /// Having this method as async is just for convenience when using it in async runtime.
             fn try_lock_shared_async(&self) -> impl core::future::Future<Output = Result<()>>;
@@ -77,7 +77,7 @@ macro_rules! async_file_ext {
 
             /// Locks the file for exclusive usage, or returns an error if the file is
             /// currently locked (see `lock_contended_error`).
-            /// 
+            ///
             /// **Note:** This method is not really "async", the underlying system call is still blocking.
             /// Having this method as async is just for convenience when using it in async runtime.
             fn try_lock_exclusive_async(&self) -> impl core::future::Future<Output = Result<()>>;
@@ -86,7 +86,7 @@ macro_rules! async_file_ext {
             fn unlock(&self) -> Result<()>;
 
             /// Unlocks the file.
-            /// 
+            ///
             /// **Note:** This method is not really "async", the underlying system call is still blocking.
             /// Having this method as async is just for convenience when using it in async runtime.
             fn unlock_async(&self) -> impl core::future::Future<Output = Result<()>>;
