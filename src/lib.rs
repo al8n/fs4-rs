@@ -3,7 +3,7 @@
 #![cfg_attr(test, feature(test))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
-#![allow(unexpected_cfgs)]
+#![allow(unexpected_cfgs, unstable_name_collisions)]
 
 #[cfg(windows)]
 extern crate windows_sys;
