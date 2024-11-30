@@ -108,8 +108,12 @@ cfg_async_std! {
     pub(crate) mod async_std_impl;
 }
 
-cfg_fs_err_tokio! {
-    pub(crate) mod fs_err_tokio_impl;
+cfg_fs_err2_tokio! {
+    pub(crate) mod fs_err2_tokio_impl;
+}
+
+cfg_fs_err3_tokio! {
+    pub(crate) mod fs_err3_tokio_impl;
 }
 
 cfg_smol! {

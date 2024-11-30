@@ -9,13 +9,14 @@ use windows_sys::Win32::Storage::FileSystem::{
     LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY,
 };
 
-use fs_err::File;
+use fs_err3::tokio::File;
 
 lock_impl!(File);
 allocate!(File);
 allocate_size!(File);
 
 test_mod! {
-  use crate::fs_err::FileExt;
-  use fs_err as fs;
+  tokio::test,
+  use crate::fs_err3_tokio::AsyncFileExt;
+  use fs_err3::tokio as fs;
 }
