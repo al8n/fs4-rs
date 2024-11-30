@@ -1,9 +1,9 @@
 //! Extended utilities for working with files and filesystems in Rust.
-#![doc(html_root_url = "https://docs.rs/fs4/0.11.0")]
+#![doc(html_root_url = "https://docs.rs/fs4/0.12.0")]
 #![cfg_attr(test, feature(test))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
-#![allow(unexpected_cfgs)]
+#![allow(unexpected_cfgs, unstable_name_collisions)]
 
 #[cfg(windows)]
 extern crate windows_sys;
@@ -20,21 +20,43 @@ macro_rules! cfg_async_std {
 
 // This lint is a bug, it is being used in multiple places.
 #[allow(unused_macros)]
-macro_rules! cfg_fs_err {
+macro_rules! cfg_fs_err2 {
     ($($item:item)*) => {
         $(
-            #[cfg(feature = "fs-err")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err")))]
+            #[cfg(feature = "fs-err2")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err2")))]
             $item
         )*
     }
 }
 
-macro_rules! cfg_fs_err_tokio {
+macro_rules! cfg_fs_err2_tokio {
     ($($item:item)*) => {
         $(
-            #[cfg(feature = "fs-err-tokio")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err-tokio")))]
+            #[cfg(feature = "fs-err2-tokio")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err2-tokio")))]
+            $item
+        )*
+    }
+}
+
+// This lint is a bug, it is being used in multiple places.
+#[allow(unused_macros)]
+macro_rules! cfg_fs_err3 {
+    ($($item:item)*) => {
+        $(
+            #[cfg(feature = "fs-err3")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err3")))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_fs_err3_tokio {
+    ($($item:item)*) => {
+        $(
+            #[cfg(feature = "fs-err3-tokio")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err3-tokio")))]
             $item
         )*
     }
@@ -70,11 +92,21 @@ macro_rules! cfg_sync {
   }
 }
 
-macro_rules! cfg_fs_err {
+macro_rules! cfg_fs2_err {
     ($($item:item)*) => {
         $(
-            #[cfg(feature = "fs-err")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err")))]
+            #[cfg(feature = "fs-err2")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err2")))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_fs3_err {
+    ($($item:item)*) => {
+        $(
+            #[cfg(feature = "fs-err3")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "fs-err3")))]
             $item
         )*
     }
@@ -109,9 +141,15 @@ cfg_sync!(
     }
 );
 
-cfg_fs_err!(
-    pub mod fs_err {
-        pub use crate::file_ext::sync_impl::fs_err_impl::FileExt;
+cfg_fs_err2!(
+    pub mod fs_err2 {
+        pub use crate::file_ext::sync_impl::fs_err2_impl::FileExt;
+    }
+);
+
+cfg_fs_err3!(
+    pub mod fs_err3 {
+        pub use crate::file_ext::sync_impl::fs_err3_impl::FileExt;
     }
 );
 
@@ -121,9 +159,15 @@ cfg_async_std!(
     }
 );
 
-cfg_fs_err_tokio!(
-    pub mod fs_err_tokio {
-        pub use crate::file_ext::async_impl::fs_err_tokio_impl::AsyncFileExt;
+cfg_fs_err2_tokio!(
+    pub mod fs_err2_tokio {
+        pub use crate::file_ext::async_impl::fs_err2_tokio_impl::AsyncFileExt;
+    }
+);
+
+cfg_fs_err3_tokio!(
+    pub mod fs_err3_tokio {
+        pub use crate::file_ext::async_impl::fs_err3_tokio_impl::AsyncFileExt;
     }
 );
 
