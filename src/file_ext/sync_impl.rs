@@ -88,7 +88,7 @@ macro_rules! test_mod {
     ($($use_stmt:item)*) => {
         #[cfg(test)]
         mod test {
-            extern crate tempdir;
+            extern crate tempfile;
             extern crate test;
 
             use super::*;
@@ -104,7 +104,7 @@ macro_rules! test_mod {
             /// Tests shared file lock operations.
             #[test]
             fn lock_shared() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file1 = fs::OpenOptions::new()
                     .read(true)
@@ -149,7 +149,7 @@ macro_rules! test_mod {
             /// Tests exclusive file lock operations.
             #[test]
             fn lock_exclusive() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file1 = fs::OpenOptions::new()
                     .read(true)
@@ -185,7 +185,7 @@ macro_rules! test_mod {
             /// Tests that a lock is released after the file that owns it is dropped.
             #[test]
             fn lock_cleanup() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file1 = fs::OpenOptions::new()
                     .read(true)
@@ -216,7 +216,7 @@ macro_rules! test_mod {
             /// Tests file allocation.
             #[test]
             fn allocate() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file = fs::OpenOptions::new()
                     .write(true)
@@ -248,7 +248,7 @@ macro_rules! test_mod {
             /// Checks filesystem space methods.
             #[test]
             fn filesystem_space() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let FsStats {
                     free_space,
                     available_space,
@@ -265,7 +265,7 @@ macro_rules! test_mod {
             /// for comparing against the truncate and allocate benchmarks.
             #[bench]
             fn bench_file_create(b: &mut test::Bencher) {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("file");
 
                 b.iter(|| {
@@ -284,7 +284,7 @@ macro_rules! test_mod {
             #[bench]
             fn bench_file_truncate(b: &mut test::Bencher) {
                 let size = 32 * 1024 * 1024;
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("file");
 
                 b.iter(|| {
@@ -304,7 +304,7 @@ macro_rules! test_mod {
             #[bench]
             fn bench_file_allocate(b: &mut test::Bencher) {
                 let size = 32 * 1024 * 1024;
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("file");
 
                 b.iter(|| {
@@ -324,7 +324,7 @@ macro_rules! test_mod {
             #[bench]
             fn bench_allocated_size(b: &mut test::Bencher) {
                 let size = 32 * 1024 * 1024;
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("file");
                 let file = fs::OpenOptions::new()
                     .read(true)
@@ -343,7 +343,7 @@ macro_rules! test_mod {
             /// Benchmarks locking and unlocking a file lock.
             #[bench]
             fn bench_lock_unlock(b: &mut test::Bencher) {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file = fs::OpenOptions::new()
                     .read(true)
@@ -362,7 +362,7 @@ macro_rules! test_mod {
             /// Benchmarks the free space method.
             #[bench]
             fn bench_free_space(b: &mut test::Bencher) {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 b.iter(|| {
                     test::black_box(free_space(tempdir.path()).unwrap());
                 });
@@ -371,7 +371,7 @@ macro_rules! test_mod {
             /// Benchmarks the available space method.
             #[bench]
             fn bench_available_space(b: &mut test::Bencher) {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 b.iter(|| {
                     test::black_box(available_space(tempdir.path()).unwrap());
                 });
@@ -380,7 +380,7 @@ macro_rules! test_mod {
             /// Benchmarks the total space method.
             #[bench]
             fn bench_total_space(b: &mut test::Bencher) {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 b.iter(|| {
                     test::black_box(total_space(tempdir.path()).unwrap());
                 });

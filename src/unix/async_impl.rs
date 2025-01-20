@@ -58,7 +58,7 @@ macro_rules! test_mod {
     ($annotation:meta, $($use_stmt:item)*) => {
         #[cfg(test)]
         mod test {
-          extern crate tempdir;
+          extern crate tempfile;
 
           use crate::lock_contended_error;
 
@@ -70,7 +70,7 @@ macro_rules! test_mod {
           /// held on the file descriptor.
           #[$annotation]
           async fn lock_replace() {
-              let tempdir = tempdir::TempDir::new("fs4").unwrap();
+            let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
               let path = tempdir.path().join("fs4");
               let file1 = fs::OpenOptions::new()
                   .write(true)

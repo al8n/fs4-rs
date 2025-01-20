@@ -45,7 +45,7 @@ async-std = { version = "1", features = ["attributes"] }
 fs-err2 = { package = "fs-err", version = "2", features = ["io_safety", "tokio"] }
 fs-err3 = { package = "fs-err", version = "3", features = ["tokio"] }
 smol-potat = "1.1"
-tempdir = "0.3"
+tempfile = "3"
 tokio = { version = "1", features = ["full"] }
 libc = "0.2"
 

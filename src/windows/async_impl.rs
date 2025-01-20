@@ -52,7 +52,7 @@ macro_rules! test_mod {
     ($annotation:meta, $($use_stmt:item)*) => {
         #[cfg(test)]
         mod test {
-          extern crate tempdir;
+          extern crate tempfile;
 
           use crate::lock_contended_error;
 
@@ -64,7 +64,7 @@ macro_rules! test_mod {
           /// shared locked.
           #[$annotation]
           async fn lock_non_reentrant() {
-              let tempdir = tempdir::TempDir::new("fs4").unwrap();
+              let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
               let path = tempdir.path().join("fs4");
               let file = fs::OpenOptions::new()
                   .read(true)
@@ -94,7 +94,7 @@ macro_rules! test_mod {
           /// be unlocked independently.
           #[$annotation]
           async fn lock_layering() {
-              let tempdir = tempdir::TempDir::new("fs4").unwrap();
+              let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
               let path = tempdir.path().join("fs4");
               let file = fs::OpenOptions::new()
                   .read(true)
@@ -135,7 +135,7 @@ macro_rules! test_mod {
           /// A file handle with multiple open locks will have all locks closed on drop.
           #[$annotation]
           async fn lock_layering_cleanup() {
-              let tempdir = tempdir::TempDir::new("fs4").unwrap();
+              let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
               let path = tempdir.path().join("fs4");
               let file1 = fs::OpenOptions::new()
                   .read(true)
