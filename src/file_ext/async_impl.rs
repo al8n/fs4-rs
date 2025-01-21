@@ -102,7 +102,7 @@ macro_rules! test_mod {
      ($annotation:meta, $($use_stmt:item)*) => {
         #[cfg(test)]
         mod test {
-            extern crate tempdir;
+            extern crate tempfile;
             extern crate test;
             use crate::{
                 allocation_granularity, available_space, free_space,
@@ -116,7 +116,7 @@ macro_rules! test_mod {
             /// Tests shared file lock operations.
             #[$annotation]
             async fn lock_shared() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file1 = fs::OpenOptions::new()
                     .read(true)
@@ -161,7 +161,7 @@ macro_rules! test_mod {
             /// Tests exclusive file lock operations.
             #[$annotation]
             async fn lock_exclusive() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file1 = fs::OpenOptions::new()
                     .read(true)
@@ -197,7 +197,7 @@ macro_rules! test_mod {
             /// Tests that a lock is released after the file that owns it is dropped.
             #[$annotation]
             async fn lock_cleanup() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file1 = fs::OpenOptions::new()
                     .read(true)
@@ -228,7 +228,7 @@ macro_rules! test_mod {
             /// Tests file allocation.
             #[$annotation]
             async fn allocate() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
                 let file = fs::OpenOptions::new()
                     .write(true)
@@ -260,7 +260,7 @@ macro_rules! test_mod {
             /// Checks filesystem space methods.
             #[$annotation]
             async fn filesystem_space() {
-                let tempdir = tempdir::TempDir::new("fs4").unwrap();
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let total_space = total_space(tempdir.path()).unwrap();
                 let free_space = free_space(tempdir.path()).unwrap();
                 let available_space = available_space(tempdir.path()).unwrap();
