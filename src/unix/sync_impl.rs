@@ -60,8 +60,6 @@ macro_rules! test_mod {
         mod test {
           extern crate tempdir;
 
-          use crate::lock_contended_error;
-
           $(
               $use_stmt
           )*
@@ -93,8 +91,8 @@ macro_rules! test_mod {
               // Attempting to replace a shared lock with an exclusive lock will fail
               // with multiple lock holders, and remove the original shared lock.
               assert_eq!(
-                  file2.try_lock_exclusive().unwrap_err().raw_os_error(),
-                  lock_contended_error().raw_os_error()
+                  file2.try_lock_exclusive().unwrap(),
+                  false,
               );
               file1.lock_shared().unwrap();
           }

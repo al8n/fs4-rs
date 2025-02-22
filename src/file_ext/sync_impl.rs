@@ -93,7 +93,7 @@ macro_rules! test_mod {
 
             use super::*;
             use crate::{
-                allocation_granularity, available_space, free_space, lock_contended_error, statvfs,
+                allocation_granularity, available_space, free_space, statvfs,
                 total_space, FsStats,
             };
 
@@ -132,13 +132,13 @@ macro_rules! test_mod {
                 file1.lock_shared().unwrap();
                 file2.lock_shared().unwrap();
                 assert_eq!(
-                    file3.try_lock_exclusive().unwrap_err().kind(),
-                    lock_contended_error().kind()
+                    file3.try_lock_exclusive().unwrap(),
+                    false,
                 );
                 file1.unlock().unwrap();
                 assert_eq!(
-                    file3.try_lock_exclusive().unwrap_err().kind(),
-                    lock_contended_error().kind()
+                    file3.try_lock_exclusive().unwrap(),
+                    false,
                 );
 
                 // Once all shared file locks are dropped, an exclusive lock may be created;
@@ -169,12 +169,12 @@ macro_rules! test_mod {
                 // No other access is possible once an exclusive lock is created.
                 file1.lock_exclusive().unwrap();
                 assert_eq!(
-                    file2.try_lock_exclusive().unwrap_err().kind(),
-                    lock_contended_error().kind()
+                    file2.try_lock_exclusive().unwrap(),
+                    false,
                 );
                 assert_eq!(
-                    file2.try_lock_shared().unwrap_err().kind(),
-                    lock_contended_error().kind()
+                    file2.try_lock_shared().unwrap(),
+                    false,
                 );
 
                 // Once the exclusive lock is dropped, the second file is able to create a lock.
@@ -204,8 +204,8 @@ macro_rules! test_mod {
 
                 file1.lock_exclusive().unwrap();
                 assert_eq!(
-                    file2.try_lock_shared().unwrap_err().kind(),
-                    lock_contended_error().kind()
+                    file2.try_lock_shared().unwrap(),
+                    false,
                 );
 
                 // Drop file1; the lock should be released.
