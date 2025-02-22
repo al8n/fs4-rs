@@ -11,13 +11,13 @@ macro_rules! lock_impl {
         }
 
         #[cfg(not(target_os = "wasi"))]
-        pub fn try_lock_shared(file: &$file) -> std::io::Result<()> {
-            flock(file, rustix::fs::FlockOperation::NonBlockingLockShared)
+        pub fn try_lock_shared(file: &$file) -> std::io::Result<bool> {
+            try_flock(file, rustix::fs::FlockOperation::NonBlockingLockShared)
         }
 
         #[cfg(not(target_os = "wasi"))]
-        pub fn try_lock_exclusive(file: &$file) -> std::io::Result<()> {
-            flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
+        pub fn try_lock_exclusive(file: &$file) -> std::io::Result<bool> {
+            try_flock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
         }
 
         #[cfg(not(target_os = "wasi"))]
@@ -32,6 +32,22 @@ macro_rules! lock_impl {
             match rustix::fs::flock(borrowed_fd, flag) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(std::io::Error::from_raw_os_error(e.raw_os_error())),
+            }
+        }
+
+        #[cfg(not(target_os = "wasi"))]
+        fn try_flock(file: &$file, flag: rustix::fs::FlockOperation) -> std::io::Result<bool> {
+            let borrowed_fd = unsafe { rustix::fd::BorrowedFd::borrow_raw(file.as_raw_fd()) };
+
+            match rustix::fs::flock(borrowed_fd, flag) {
+                Ok(_) => Ok(true),
+                Err(e) => {
+                    let err = std::io::Error::from_raw_os_error(e.raw_os_error());
+                    if let std::io::ErrorKind::WouldBlock = err.kind() {
+                        return Ok(false);
+                    }
+                    Err(err)
+                }
             }
         }
     };

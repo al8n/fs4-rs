@@ -48,11 +48,11 @@ macro_rules! file_ext {
 
             /// Locks the file for shared usage, or returns an error if the file is
             /// currently locked (see `lock_contended_error`).
-            fn try_lock_shared(&self) -> Result<()>;
+            fn try_lock_shared(&self) -> Result<bool>;
 
             /// Locks the file for exclusive usage, or returns an error if the file is
             /// currently locked (see `lock_contended_error`).
-            fn try_lock_exclusive(&self) -> Result<()>;
+            fn try_lock_exclusive(&self) -> Result<bool>;
 
             /// Unlocks the file.
             fn unlock(&self) -> Result<()>;
@@ -71,10 +71,10 @@ macro_rules! file_ext {
             fn lock_exclusive(&self) -> Result<()> {
                 sys::lock_exclusive(self)
             }
-            fn try_lock_shared(&self) -> Result<()> {
+            fn try_lock_shared(&self) -> Result<bool> {
                 sys::try_lock_shared(self)
             }
-            fn try_lock_exclusive(&self) -> Result<()> {
+            fn try_lock_exclusive(&self) -> Result<bool> {
                 sys::try_lock_exclusive(self)
             }
             fn unlock(&self) -> Result<()> {
