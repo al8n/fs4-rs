@@ -20,49 +20,58 @@ This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the 
 </div>
 
 ## Installation
+
 - std
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["sync"] }
     ```
 
 - [async-std runtime](https://crates.io/crates/async-std)
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["async-std"] }
     ```
 
 - [fs-err v2](https://crates.io/crates/fs-err)
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["fs-err2"] }
     ```
 
 - [fs-err-tokio v2](https://crates.io/crates/fs-err)
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["fs-err2-tokio"] }
     ```
 
 - [fs-err v3](https://crates.io/crates/fs-err)
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["fs-err3"] }
     ```
 
 - [fs-err-tokio v3](https://crates.io/crates/fs-err)
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["fs-err3-tokio"] }
     ```
 
 - [smol runtime](https://crates.io/crates/smol)
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["smol"] }
     ```
 
 - [tokio runtime](https://crates.io/crates/tokio)
+
     ```toml
     [dependencies]
     fs4 = { version = "0.12", features = ["tokio"] }
@@ -86,7 +95,7 @@ Apache License (Version 2.0).
 
 See [LICENSE-APACHE](LICENSE-APACHE), [LICENSE-MIT](LICENSE-MIT) for details.
 
-Copyright (c) 2021 Al Liu.
+Copyright (c) 2025 Al Liu.
 
 Copyright (c) 2015 Dan Burkert.
 
