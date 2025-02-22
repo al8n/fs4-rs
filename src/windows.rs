@@ -59,8 +59,8 @@ macro_rules! lock_impl {
                 );
                 if ret == 0 {
                     let err = Error::last_os_error();
-                    if err.raw_os_error() == Some(ERROR_IO_PENDING as i32)
-                        || err.raw_os_error() == Some(ERROR_LOCK_VIOLATION as i32)
+                    if err.raw_os_error() == Some(crate::windows::ERROR_IO_PENDING as i32)
+                        || err.raw_os_error() == Some(crate::windows::ERROR_LOCK_VIOLATION as i32)
                     {
                         return Ok(false);
                     }
@@ -88,7 +88,7 @@ use crate::FsStats;
 use std::io::{Error, Result};
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
-use windows_sys::Win32::Foundation::{ERROR_IO_PENDING, ERROR_LOCK_VIOLATION};
+use windows_sys::Win32::Foundation::ERROR_LOCK_VIOLATION;
 use windows_sys::Win32::Storage::FileSystem::{
     GetDiskFreeSpaceExW, GetDiskFreeSpaceW, GetVolumePathNameW,
 };
