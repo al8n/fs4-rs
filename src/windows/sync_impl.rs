@@ -101,34 +101,34 @@ macro_rules! test_mod {
                   .unwrap();
 
               // Open two shared locks on the file, and then try and fail to open an exclusive lock.
-              file.lock_exclusive().unwrap();
-              file.lock_shared().unwrap();
-              file.lock_shared().unwrap();
+              FileExt::lock_exclusive(&file).unwrap();
+              FileExt::lock_shared(&file).unwrap();
+              FileExt::lock_shared(&file).unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
+                  FileExt::try_lock_exclusive(&file).unwrap(),
                   false,
                   "the first try lock exclusive",
               );
 
               // Pop one of the shared locks and try again.
-              file.unlock().unwrap();
+              FileExt::unlock(&file).unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
+                  FileExt::try_lock_exclusive(&file).unwrap(),
                   false,
                   "pop the first shared lock",
               );
 
               // Pop the second shared lock and try again.
-              file.unlock().unwrap();
+              FileExt::unlock(&file).unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
+                  FileExt::try_lock_exclusive(&file).unwrap(),
                   false,
                   "pop the second shared lock",
               );
 
               // Pop the exclusive lock and finally succeed.
-              file.unlock().unwrap();
-              file.lock_exclusive().unwrap();
+              FileExt::unlock(&file).unwrap();
+              FileExt::lock_exclusive(&file).unwrap();
           }
 
           /// A file handle with multiple open locks will have all locks closed on drop.

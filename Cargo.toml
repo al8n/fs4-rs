@@ -28,7 +28,7 @@ fs-err3-tokio = ["fs-err3", "fs-err3/tokio"]
 rustix = { version = "0.38", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.52"
+version = "0.59"
 features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO"]
 
 [dependencies]
