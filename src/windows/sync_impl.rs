@@ -74,7 +74,7 @@ macro_rules! test_mod {
               // Multiple exclusive locks fails.
               FileExt::lock_exclusive(&file).unwrap();
               assert_eq!(
-                  FileExt::lock_exclusive(&file).unwrap(),
+                  FileExt::try_lock_exclusive(&file).unwrap(),
                   false
               );
               FileExt::unlock(&file).unwrap();
