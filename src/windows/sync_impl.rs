@@ -72,17 +72,17 @@ macro_rules! test_mod {
                   .unwrap();
 
               // Multiple exclusive locks fails.
-              file.lock_exclusive().unwrap();
+              FileExt::lock_exclusive(&file).unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
+                  FileExt::lock_exclusive(&file).unwrap(),
                   false
               );
-              file.unlock().unwrap();
+              FileExt::unlock(&file).unwrap();
 
               // Shared then Exclusive locks fails.
-              file.lock_shared().unwrap();
+              FileExt::lock_shared(&file).unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
+                  FileExt::try_lock_exclusive(&file).unwrap(),
                   false
               );
           }
@@ -150,14 +150,14 @@ macro_rules! test_mod {
                   .unwrap();
 
               // Open two shared locks on the file, and then try and fail to open an exclusive lock.
-              file1.lock_shared().unwrap();
+              FileExt::lock_shared(&file1).unwrap();
               assert_eq!(
-                  file2.try_lock_exclusive().unwrap(),
+                  FileExt::try_lock_exclusive(&file2).unwrap(),
                   false,
               );
 
               drop(file1);
-              file2.lock_exclusive().unwrap();
+              FileExt::lock_exclusive(&file2).unwrap();
           }
         }
     };

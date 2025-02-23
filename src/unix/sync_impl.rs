@@ -84,17 +84,17 @@ macro_rules! test_mod {
                   .unwrap();
 
               // Creating a shared lock will drop an exclusive lock.
-              file1.lock_exclusive().unwrap();
-              file1.lock_shared().unwrap();
-              file2.lock_shared().unwrap();
+              FileExt::lock_exclusive(&file1).unwrap();
+              FileExt::lock_shared(&file1).unwrap();
+              FileExt::lock_shared(&file2).unwrap();
 
               // Attempting to replace a shared lock with an exclusive lock will fail
               // with multiple lock holders, and remove the original shared lock.
               assert_eq!(
-                  file2.try_lock_exclusive().unwrap(),
+                  FileExt::try_lock_exclusive(&file2).unwrap(),
                   false,
               );
-              file1.lock_shared().unwrap();
+              FileExt::lock_shared(&file1).unwrap();
           }
         }
     };
