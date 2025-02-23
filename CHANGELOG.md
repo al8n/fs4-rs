@@ -4,4 +4,4 @@
 
 ### Breakage
 
-- Make `try_lock_*` returns `std::io::Result<bool>`, which is compatible with the incoming `std::fs::File::try_lock*` in std liberary.
+- Make `try_lock_*` return `std::io::Result<bool>`, which is compatible with the upcoming `std::fs::File::try_lock*` in `std`.
