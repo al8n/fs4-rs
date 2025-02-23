@@ -106,21 +106,24 @@ macro_rules! test_mod {
               file.lock_shared().unwrap();
               assert_eq!(
                   file.try_lock_exclusive().unwrap(),
-                  false
+                  false,
+                  "the first try lock exclusive",
               );
 
               // Pop one of the shared locks and try again.
               file.unlock().unwrap();
               assert_eq!(
                   file.try_lock_exclusive().unwrap(),
-                  false
+                  false,
+                  "pop the first shared lock",
               );
 
               // Pop the second shared lock and try again.
               file.unlock().unwrap();
               assert_eq!(
                   file.try_lock_exclusive().unwrap(),
-                  false
+                  false,
+                  "pop the second shared lock",
               );
 
               // Pop the exclusive lock and finally succeed.
