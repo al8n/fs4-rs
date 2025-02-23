@@ -54,8 +54,6 @@ macro_rules! test_mod {
         mod test {
           extern crate tempfile;
 
-          use crate::lock_contended_error;
-
           $(
               $use_stmt
           )*
@@ -77,16 +75,16 @@ macro_rules! test_mod {
               // Multiple exclusive locks fails.
               file.lock_exclusive().unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap_err().raw_os_error(),
-                  lock_contended_error().raw_os_error()
+                  file.try_lock_exclusive().unwrap(),
+                  false
               );
               file.unlock().unwrap();
 
               // Shared then Exclusive locks fails.
               file.lock_shared().unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap_err().raw_os_error(),
-                  lock_contended_error().raw_os_error()
+                  file.try_lock_exclusive().unwrap(),
+                  false
               );
           }
 
@@ -109,22 +107,25 @@ macro_rules! test_mod {
               file.lock_shared().unwrap();
               file.lock_shared().unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap_err().raw_os_error(),
-                  lock_contended_error().raw_os_error()
+                  file.try_lock_exclusive().unwrap(),
+                  false,
+                  "the first try lock exclusive",
               );
 
               // Pop one of the shared locks and try again.
               file.unlock().unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap_err().raw_os_error(),
-                  lock_contended_error().raw_os_error()
+                  file.try_lock_exclusive().unwrap(),
+                  false,
+                    "pop the first shared lock",
               );
 
               // Pop the second shared lock and try again.
               file.unlock().unwrap();
               assert_eq!(
-                  file.try_lock_exclusive().unwrap_err().raw_os_error(),
-                  lock_contended_error().raw_os_error()
+                  file.try_lock_exclusive().unwrap(),
+                  false,
+                    "pop the second shared lock",
               );
 
               // Pop the exclusive lock and finally succeed.
@@ -155,8 +156,8 @@ macro_rules! test_mod {
               // Open two shared locks on the file, and then try and fail to open an exclusive lock.
               file1.lock_shared().unwrap();
               assert_eq!(
-                  file2.try_lock_exclusive().unwrap_err().raw_os_error(),
-                  lock_contended_error().raw_os_error()
+                  file2.try_lock_exclusive().unwrap(),
+                  false
               );
 
               drop(file1);

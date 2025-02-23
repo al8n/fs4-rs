@@ -8,12 +8,12 @@ macro_rules! lock_impl {
             lock_file(file, LOCKFILE_EXCLUSIVE_LOCK)
         }
 
-        pub fn try_lock_shared(file: &$file) -> Result<()> {
-            lock_file(file, LOCKFILE_FAIL_IMMEDIATELY)
+        pub fn try_lock_shared(file: &$file) -> Result<bool> {
+            try_lock_file(file, LOCKFILE_FAIL_IMMEDIATELY)
         }
 
-        pub fn try_lock_exclusive(file: &$file) -> Result<()> {
-            lock_file(file, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY)
+        pub fn try_lock_exclusive(file: &$file) -> Result<bool> {
+            try_lock_file(file, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY)
         }
 
         pub fn unlock(file: &$file) -> Result<()> {
@@ -42,6 +42,34 @@ macro_rules! lock_impl {
                     Err(Error::last_os_error())
                 } else {
                     Ok(())
+                }
+            }
+        }
+
+        fn try_lock_file(file: &$file, flags: u32) -> Result<bool> {
+            unsafe {
+                let mut overlapped = mem::zeroed();
+                let ret = LockFileEx(
+                    file.as_raw_handle() as HANDLE,
+                    flags,
+                    0,
+                    !0,
+                    !0,
+                    &mut overlapped,
+                );
+                if ret == 0 {
+                    let err = Error::last_os_error();
+                    if err.raw_os_error()
+                        == Some(::windows_sys::Win32::Foundation::ERROR_IO_PENDING as i32)
+                        || err.raw_os_error()
+                            == Some(::windows_sys::Win32::Foundation::ERROR_LOCK_VIOLATION as i32)
+                    {
+                        return Ok(false);
+                    }
+
+                    Err(err)
+                } else {
+                    Ok(true)
                 }
             }
         }

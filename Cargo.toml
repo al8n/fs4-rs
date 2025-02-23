@@ -1,7 +1,7 @@
 [package]
 name = "fs4"
 # NB: When modifying, also modify html_root_url in lib.rs
-version = "0.12.0"
+version = "0.13.0"
 rust-version = "1.75.0"
 authors = ["Dan Burkert <dan@danburkert.com>", "Al Liu <scygliu1@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -28,7 +28,7 @@ fs-err3-tokio = ["fs-err3", "fs-err3/tokio"]
 rustix = { version = "0.38", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.52"
+version = "0.59"
 features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO"]
 
 [dependencies]
