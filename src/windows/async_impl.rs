@@ -54,8 +54,6 @@ macro_rules! test_mod {
         mod test {
           extern crate tempdir;
 
-          use crate::lock_contended_error;
-
           $(
               $use_stmt
           )*
