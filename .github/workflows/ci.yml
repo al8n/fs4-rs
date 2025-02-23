@@ -72,7 +72,6 @@ jobs:
       matrix:
         rust:
           - nightly
-          - stable
         os:
           - macos-latest
           - windows-latest
