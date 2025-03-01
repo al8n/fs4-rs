@@ -56,6 +56,58 @@ jobs:
       - name: Check
         run: cargo check
 
+  # Run tests on some extra platforms
+  cross:
+    name: cross
+    strategy:
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - aarch64-linux-android
+          - aarch64-unknown-linux-musl
+          - i686-linux-android
+          - x86_64-linux-android
+          - i686-pc-windows-gnu
+          - x86_64-pc-windows-gnu
+          - i686-unknown-linux-gnu
+          - powerpc64-unknown-linux-gnu
+          # - mips64-unknown-linux-gnuabi64
+          - riscv64gc-unknown-linux-gnu
+          - wasm32-unknown-unknown
+          - wasm32-unknown-emscripten
+          - wasm32-wasi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo build and registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cross-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cross-
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+      - name: cross build --target ${{ matrix.target }}
+        run: |
+          cargo install cross
+          cross build --target ${{ matrix.target }}
+        if: matrix.target != 'wasm32-unknown-unknown' && matrix.target != 'wasm32-wasi'
+      # WASM support
+      - name: cargo build --target ${{ matrix.target }}
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo build --target ${{ matrix.target }}
+        if: matrix.target == 'wasm32-unknown-unknown' || matrix.target == 'wasm32-wasi'
+      # - name: cargo build --target ${{ matrix.target }}
+      #   run: |
+      #     rustup target add ${{ matrix.target }}
+      #     cargo +nightly build --no-default-features --features alloc --target ${{ matrix.target }} -Z build-std=core,alloc
+      #   if: matrix.target == 'mips64-unknown-linux-gnuabi64'
+
   # Apply clippy lints
   clippy:
     name: clippy
