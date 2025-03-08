@@ -5,7 +5,8 @@
 
 Extended utilities for working with files and filesystems in Rust.
 
-This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the aim for this fork is to support `async` and replace `libc` by `rustix`.
+This is a fork of the [fs2-rs](https://github.com/danburkert/fs2-rs) crate, the aim for this fork is to support `async`
+and replace `libc` by [rustix](https://github.com/bytecodealliance/rustix).
 
 [<img alt="github" src="https://img.shields.io/badge/GITHUB-al8n/fs4-8da0cb?style=for-the-badge&logo=Github" height="22">][Github-url]
 [<img alt="Build" src="https://img.shields.io/github/actions/workflow/status/al8n/fs4-rs/ci.yml?logo=Github-Actions&style=for-the-badge" height="22">][CI-url]
