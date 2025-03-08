@@ -46,12 +46,16 @@ macro_rules! file_ext {
             /// locked.
             fn lock_exclusive(&self) -> Result<()>;
 
-            /// Locks the file for shared usage, or returns an error if the file is
-            /// currently locked (see `lock_contended_error`).
+            /// Locks the file for shared usage.
+            /// 
+            /// Returns `Ok(true)` if the lock was acquired, `Ok(false)` if the file is currently
+            /// locked.
             fn try_lock_shared(&self) -> Result<bool>;
 
-            /// Locks the file for exclusive usage, or returns an error if the file is
-            /// currently locked (see `lock_contended_error`).
+            /// Locks the file for exclusive usage.
+            /// 
+            /// Returns `Ok(true)` if the lock was acquired, `Ok(false)` if the file is currently
+            /// locked.
             fn try_lock_exclusive(&self) -> Result<bool>;
 
             /// Unlocks the file.
