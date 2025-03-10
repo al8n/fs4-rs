@@ -89,6 +89,10 @@ and replace `libc` by [rustix](https://github.com/bytecodealliance/rustix).
 - [x] [smol support](https://crates.io/crates/smol)
 - [x] [tokio support](https://crates.io/crates/tokio)
 
+## Cross Platform Supports
+
+See `cross` senction in [CI](.github/workflows/ci.yml).
+
 ## License
 
 `fs4` is primarily distributed under the terms of both the MIT license and the
