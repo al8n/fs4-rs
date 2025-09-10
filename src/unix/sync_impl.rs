@@ -38,6 +38,7 @@ macro_rules! allocate {
             target_os = "openbsd",
             target_os = "netbsd",
             target_os = "dragonfly",
+            target_os = "redox",
             target_os = "solaris",
             target_os = "illumos",
             target_os = "haiku",
