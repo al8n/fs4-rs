@@ -177,7 +177,7 @@ macro_rules! test_mod {
                     false,
                 );
                 assert_eq!(
-                    file2.try_lock_shared().unwrap(),
+                    FileExt::try_lock_shared(&file2).unwrap(),
                     false,
                 );
 
@@ -208,7 +208,7 @@ macro_rules! test_mod {
 
                 file1.lock_exclusive().unwrap();
                 assert_eq!(
-                    file2.try_lock_shared().unwrap(),
+                    FileExt::try_lock_shared(&file2).unwrap(),
                     false,
                 );
 
