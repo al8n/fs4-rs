@@ -14,7 +14,7 @@ impl FsStats {
     self.free_space
   }
 
-  /// Returns the available space in bytes to non-priveleged users in the file
+  /// Returns the available space in bytes to non-privileged users in the file
   /// system containing the provided path.
   pub fn available_space(&self) -> u64 {
     self.available_space
