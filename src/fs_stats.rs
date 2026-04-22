@@ -35,3 +35,48 @@ impl FsStats {
     self.allocation_granularity
   }
 }
+
+#[cfg(test)]
+mod tests {
+  //! The cross-platform `filesystem_space` tests destructure `FsStats`
+  //! directly, and the top-level `free_space` / `available_space` /
+  //! `total_space` / `allocation_granularity` functions on the crate
+  //! root use field access too, so the four getter methods above
+  //! never get called from the integration tests. These unit tests
+  //! exist so coverage reflects that the getters do what they claim.
+
+  use super::*;
+
+  #[test]
+  fn getters_return_fields_verbatim() {
+    let stats = FsStats {
+      free_space: 1,
+      available_space: 2,
+      total_space: 3,
+      allocation_granularity: 4,
+    };
+    assert_eq!(stats.free_space(), 1);
+    assert_eq!(stats.available_space(), 2);
+    assert_eq!(stats.total_space(), 3);
+    assert_eq!(stats.allocation_granularity(), 4);
+  }
+
+  #[test]
+  fn derives_work() {
+    let a = FsStats {
+      free_space: 1,
+      available_space: 2,
+      total_space: 3,
+      allocation_granularity: 4,
+    };
+    let b = a.clone();
+    assert_eq!(a, b);
+    assert!(!format!("{a:?}").is_empty());
+
+    let c = FsStats {
+      free_space: 9,
+      ..a.clone()
+    };
+    assert_ne!(a, c);
+  }
+}
