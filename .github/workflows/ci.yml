@@ -108,6 +108,14 @@ jobs:
             ${{ runner.os }}-cross-
       - name: Install Rust
         run: rustup update stable && rustup default stable
+      - name: Install MinGW toolchain for Windows GNU cross targets
+        # windows-sys >= 0.61 generates import libraries via `dlltool`
+        # when building for *-pc-windows-gnu. ubuntu-latest ships the
+        # x86_64 MinGW toolchain pre-installed, but not the i686 one.
+        if: contains(matrix.target, 'pc-windows-gnu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64 binutils-mingw-w64
       - name: cargo build --target ${{ matrix.target }}
         run: |
           rustup target add ${{ matrix.target }}

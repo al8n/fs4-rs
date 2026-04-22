@@ -1,3 +1,8 @@
+// Expanded inside the `sync_impl` and `async_impl` submodules, both of
+// which are feature-gated. With `--no-default-features` (nothing but
+// the filesystem-stats API enabled), this macro has no caller, so
+// silence the resulting unused-macro lint.
+#[allow(unused_macros)]
 macro_rules! lock_impl {
   ($file: ty) => {
     #[cfg(not(target_os = "wasi"))]
