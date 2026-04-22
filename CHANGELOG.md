@@ -27,7 +27,12 @@
   branch (sync and async). Fuchsia is `cfg(unix)` under rustc and
   `rustix` exposes `fallocate` there, so the previous omission left
   the Fuchsia Unix build without an `allocate` symbol once `FileExt`
-  was enabled.
+  was enabled. With this fix, every fs4 feature builds on Fuchsia
+  **except** `fs-err3` and `fs-err3-tokio`; those remain blocked on
+  `fs-err v3.3.0` referencing `std::os::unix::fs::chroot`, which
+  rustc gates out on `target_os = "fuchsia"`. The fs4 code no longer
+  has a Fuchsia gap — the remaining one is upstream
+  (<https://github.com/andrewhickman/fs-err/issues/90>).
 
 ### Testing
 

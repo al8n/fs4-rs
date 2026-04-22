@@ -106,6 +106,17 @@ ask for, not what `fs4` declares:
 These bounds are set by upstream and can drift with future minor
 releases; pin the relevant dependency if you need an older toolchain.
 
+## Platform Notes
+
+### Fuchsia
+
+Every feature builds on Fuchsia **except** `fs-err3` and
+`fs-err3-tokio`. The blocker is upstream: `fs-err v3.3.0` calls
+`std::os::unix::fs::chroot`, which rustc gates out on
+`target_os = "fuchsia"`. The fs4 Unix modules themselves compile
+on Fuchsia (`sync`, `fs-err2`, `async-std`, `smol`, `tokio` all
+work). Tracking issue: <https://github.com/andrewhickman/fs-err/issues/90>.
+
 ## License
 
 `fs4` is primarily distributed under the terms of both the MIT license and the
