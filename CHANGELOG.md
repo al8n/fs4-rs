@@ -1,5 +1,49 @@
 # Releases
 
+## 1.0.1
+
+### Fixes
+
+- Unix `allocate`: short-circuit on allocated blocks
+  (`metadata().blocks() * 512 >= len`) instead of logical EOF. The
+  previous `metadata().len() >= len` check silently turned `allocate`
+  into a no-op on sparse files (logical length large, zero blocks
+  reserved), violating the documented preallocation guarantee. The
+  new check still skips the macOS `F_PREALLOCATE` re-allocate-ENOSPC
+  path from #15, since it asks the right question: "are the blocks
+  already reserved?" Applies to both the sync and async
+  implementations.
+- Windows `statvfs`: route the three `GetDiskFreeSpaceExW` outputs
+  correctly. `free_space` now comes from `lpTotalNumberOfFreeBytes`
+  (volume-wide, quota-independent), `available_space` from
+  `lpFreeBytesAvailable` (caller-scoped, honours per-user quotas),
+  and `total_space` is computed from cluster math
+  (`sectors_per_cluster * bytes_per_sector * total_number_of_clusters`)
+  so it reports volume capacity rather than the caller's quota. On
+  quota-enabled volumes the three fields now carry distinct,
+  documented meanings; previously `free_space` and `available_space`
+  were identical and `total_space` under-reported capacity.
+- Added `target_os = "fuchsia"` to the Unix `allocate` `fallocate`
+  branch (sync and async). Fuchsia is `cfg(unix)` under rustc and
+  `rustix` exposes `fallocate` there, so the previous omission left
+  the Fuchsia Unix build without an `allocate` symbol once `FileExt`
+  was enabled.
+
+### Testing
+
+- New regression test `allocate_reserves_blocks_on_sparse_file`
+  (sync and async, Linux-gated) creates a sparse file via `set_len`,
+  asserts `allocated_size == 0`, calls `allocate`, and asserts
+  blocks are reserved.
+
+### Documentation
+
+- README gained a **Minimum Supported Rust Version** section noting
+  that the crate's declared MSRV (`rust-version = "1.75.0"`) covers
+  the default `sync` feature, and that `async-std` / `smol` inherit
+  a higher effective MSRV (1.85) from their transitive dependencies
+  (`async-lock`, `async-signal`).
+
 ## 1.0.0
 
 ### Breakage

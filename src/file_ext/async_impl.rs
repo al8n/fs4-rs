@@ -297,6 +297,40 @@ macro_rules! test_mod {
                 assert!(file.metadata().await.unwrap().len() >= 2 * blksize - 1);
             }
 
+            /// Regression: `allocate` on a sparse file must reserve
+            /// blocks even when logical EOF already covers `len`. The
+            /// previous Unix implementation short-circuited on
+            /// `metadata().len()`, which for a file extended via
+            /// `set_len` is true with zero blocks allocated, so the
+            /// documented preallocation contract silently became a
+            /// no-op. Gated to Linux where `set_len` reliably
+            /// produces a sparse file and `st_blocks` reliably
+            /// reflects `fallocate` reservations.
+            #[cfg(target_os = "linux")]
+            #[$annotation]
+            async fn allocate_reserves_blocks_on_sparse_file() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                file.set_len(4 * blksize).await.unwrap();
+                assert_eq!(4 * blksize, file.metadata().await.unwrap().len());
+                assert_eq!(0, file.allocated_size().await.unwrap());
+
+                file.allocate(4 * blksize).await.unwrap();
+
+                assert!(
+                    file.allocated_size().await.unwrap() >= 4 * blksize,
+                    "allocate on a sparse file must reserve blocks",
+                );
+            }
+
             /// Regression test for issue #15: re-allocating the same length must
             /// not fail on macOS.
             #[$annotation]

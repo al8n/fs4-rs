@@ -299,6 +299,43 @@ macro_rules! test_mod {
                 assert!(file.metadata().unwrap().len() >= 2 * blksize - 1);
             }
 
+            /// Regression: `allocate` on a sparse file must reserve
+            /// blocks even when logical EOF already covers `len`. The
+            /// previous Unix implementation short-circuited on
+            /// `metadata().len()`, which for a file extended via
+            /// `set_len` is true with zero blocks allocated, so the
+            /// documented preallocation contract silently became a
+            /// no-op. Gated to Linux where `set_len` reliably
+            /// produces a sparse file and `st_blocks` reliably
+            /// reflects `fallocate` reservations.
+            #[cfg(target_os = "linux")]
+            #[test]
+            fn allocate_reserves_blocks_on_sparse_file() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&path)
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                // `set_len` extends logical EOF without reserving blocks:
+                // the file is sparse with `len = 4 * blksize` and
+                // `allocated_size = 0`.
+                file.set_len(4 * blksize).unwrap();
+                assert_eq!(4 * blksize, file.metadata().unwrap().len());
+                assert_eq!(0, FileExt::allocated_size(&file).unwrap());
+
+                FileExt::allocate(&file, 4 * blksize).unwrap();
+
+                assert!(
+                    FileExt::allocated_size(&file).unwrap() >= 4 * blksize,
+                    "allocate on a sparse file must reserve blocks",
+                );
+            }
+
             /// Re-allocating the same length must not fail. Regression for issue #15.
             #[test]
             fn allocate_idempotent() {
