@@ -89,6 +89,34 @@ and replace `libc` by [rustix](https://github.com/bytecodealliance/rustix).
 - [x] [smol support](https://crates.io/crates/smol)
 - [x] [tokio support](https://crates.io/crates/tokio)
 
+## Minimum Supported Rust Version
+
+`fs4` itself compiles on Rust **1.75.0** (the value of `rust-version` in
+`Cargo.toml`), and that guarantee covers the default `sync` feature.
+
+Some opt-in features inherit a higher MSRV from their transitive
+dependencies — enabling them requires whatever toolchain those crates
+ask for, not what `fs4` declares:
+
+| Feature                                     | Effective MSRV | Reason                                                         |
+| ------------------------------------------- | -------------- | -------------------------------------------------------------- |
+| `async-std`                                 | 1.85           | `async-std` pulls `async-lock >= 3.4.2` (`rust-version = 1.85`) |
+| `smol`                                      | 1.85           | `smol` pulls `async-signal >= 0.2.14` (`rust-version = 1.85`)   |
+
+These bounds are set by upstream and can drift with future minor
+releases; pin the relevant dependency if you need an older toolchain.
+
+## Platform Notes
+
+### Fuchsia
+
+Every feature builds on Fuchsia **except** `fs-err3` and
+`fs-err3-tokio`. The blocker is upstream: `fs-err v3.3.0` calls
+`std::os::unix::fs::chroot`, which rustc gates out on
+`target_os = "fuchsia"`. The fs4 Unix modules themselves compile
+on Fuchsia (`sync`, `fs-err2`, `async-std`, `smol`, `tokio` all
+work). Tracking issue: <https://github.com/andrewhickman/fs-err/issues/90>.
+
 ## License
 
 `fs4` is primarily distributed under the terms of both the MIT license and the

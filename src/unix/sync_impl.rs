@@ -11,6 +11,7 @@ macro_rules! allocate {
     #[cfg(any(
       target_os = "linux",
       target_os = "freebsd",
+      target_os = "fuchsia",
       target_os = "android",
       target_os = "emscripten",
       target_os = "nacl",
@@ -24,10 +25,12 @@ macro_rules! allocate {
         fd::BorrowedFd,
         fs::{fallocate, FallocateFlags},
       };
-      // See the comment in file_ext/sync_impl.rs. Short-circuit when the
-      // file is already large enough to avoid the macOS
-      // `F_PREALLOCATE` re-allocate-ENOSPC issue (#15).
-      if file.metadata()?.len() >= len {
+      // Short-circuit when blocks are already reserved to at least `len`.
+      // Using allocated size (not logical EOF) avoids the macOS
+      // `F_PREALLOCATE` re-allocate-ENOSPC issue (#15) without falsely
+      // skipping sparse files whose logical length exceeds their
+      // allocation.
+      if file.metadata()?.blocks().saturating_mul(512) >= len {
         return Ok(());
       }
       unsafe {

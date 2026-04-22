@@ -299,6 +299,75 @@ macro_rules! test_mod {
                 assert!(file.metadata().unwrap().len() >= 2 * blksize - 1);
             }
 
+            /// Regression: `allocate` on a sparse file must reserve
+            /// blocks even when logical EOF already covers `len`. The
+            /// previous Unix implementation short-circuited on
+            /// `metadata().len()`, which for a file extended via
+            /// `set_len` is true with zero blocks allocated, so the
+            /// documented preallocation contract silently became a
+            /// no-op. Gated to Linux where `set_len` reliably
+            /// produces a sparse file and `st_blocks` reliably
+            /// reflects `fallocate` reservations.
+            #[cfg(target_os = "linux")]
+            #[test]
+            fn allocate_reserves_blocks_on_sparse_file() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&path)
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                // `set_len` extends logical EOF without reserving blocks:
+                // the file is sparse with `len = 4 * blksize` and
+                // `allocated_size = 0`.
+                file.set_len(4 * blksize).unwrap();
+                assert_eq!(4 * blksize, file.metadata().unwrap().len());
+                assert_eq!(0, FileExt::allocated_size(&file).unwrap());
+
+                FileExt::allocate(&file, 4 * blksize).unwrap();
+
+                assert!(
+                    FileExt::allocated_size(&file).unwrap() >= 4 * blksize,
+                    "allocate on a sparse file must reserve blocks",
+                );
+            }
+
+            /// Exercises the `Err` arm of the Unix `fallocate` call by
+            /// invoking `allocate` on a read-only file descriptor,
+            /// which returns `EBADF`. Without this test the error
+            /// conversion (`std::io::Error::from_raw_os_error`) and
+            /// the `Err(...) => Err(...)` match arm are uncovered.
+            /// Gated to Unix: Windows has a separate `allocate` with
+            /// its own error path.
+            #[cfg(unix)]
+            #[test]
+            fn allocate_forwards_fallocate_error() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                // Create then close the file so it exists on disk.
+                drop(
+                    fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&path)
+                        .unwrap(),
+                );
+                // Re-open read-only. `fallocate` requires the fd to
+                // be writable, so the syscall fails with EBADF and
+                // the error is propagated through the match arm.
+                let file = fs::OpenOptions::new().read(true).open(&path).unwrap();
+                let err = FileExt::allocate(&file, 4096).unwrap_err();
+                assert!(
+                    err.raw_os_error().is_some(),
+                    "expected a raw OS error from fallocate, got {err:?}",
+                );
+            }
+
             /// Re-allocating the same length must not fail. Regression for issue #15.
             #[test]
             fn allocate_idempotent() {

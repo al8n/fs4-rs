@@ -167,6 +167,37 @@ macro_rules! test_mod {
                 file3.lock().unwrap();
             }
 
+            /// `unlock_async` is a thin async wrapper over the
+            /// blocking `unlock` syscall. Verifies the forwarder
+            /// actually releases the lock.
+            #[$annotation]
+            async fn unlock_async_releases_lock() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file1 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let file2 = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+
+                file1.lock().unwrap();
+                assert!(matches!(file2.try_lock(), Err(TryLockError::WouldBlock)));
+
+                file1.unlock_async().await.unwrap();
+
+                file2.lock().unwrap();
+                file2.unlock_async().await.unwrap();
+            }
+
             /// Tests exclusive file lock operations.
             #[$annotation]
             async fn lock_exclusive() {
@@ -295,6 +326,78 @@ macro_rules! test_mod {
                 );
                 #[cfg(unix)]
                 assert!(file.metadata().await.unwrap().len() >= 2 * blksize - 1);
+            }
+
+            /// Regression: `allocate` on a sparse file must reserve
+            /// blocks even when logical EOF already covers `len`. The
+            /// previous Unix implementation short-circuited on
+            /// `metadata().len()`, which for a file extended via
+            /// `set_len` is true with zero blocks allocated, so the
+            /// documented preallocation contract silently became a
+            /// no-op. Gated to Linux where `set_len` reliably
+            /// produces a sparse file and `st_blocks` reliably
+            /// reflects `fallocate` reservations.
+            #[cfg(target_os = "linux")]
+            #[$annotation]
+            async fn allocate_reserves_blocks_on_sparse_file() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                file.set_len(4 * blksize).await.unwrap();
+                assert_eq!(4 * blksize, file.metadata().await.unwrap().len());
+                assert_eq!(0, file.allocated_size().await.unwrap());
+
+                file.allocate(4 * blksize).await.unwrap();
+
+                assert!(
+                    file.allocated_size().await.unwrap() >= 4 * blksize,
+                    "allocate on a sparse file must reserve blocks",
+                );
+            }
+
+            /// Exercises the `Err` arm of the Unix `fallocate` call
+            /// by invoking `allocate` on a read-only file
+            /// descriptor, which returns `EBADF`. Without this test
+            /// the error conversion
+            /// (`std::io::Error::from_raw_os_error`) and the
+            /// `Err(...) => Err(...)` match arm are uncovered. Gated
+            /// to Unix: Windows has a separate `allocate` with its
+            /// own error path.
+            #[cfg(unix)]
+            #[$annotation]
+            async fn allocate_forwards_fallocate_error() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                // Create then close the file.
+                drop(
+                    fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&path)
+                        .await
+                        .unwrap(),
+                );
+                // Re-open read-only. `fallocate` requires a writable
+                // fd; the syscall fails with EBADF and the error is
+                // propagated through the match arm.
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let err = file.allocate(4096).await.unwrap_err();
+                assert!(
+                    err.raw_os_error().is_some(),
+                    "expected a raw OS error from fallocate, got {err:?}",
+                );
             }
 
             /// Regression test for issue #15: re-allocating the same length must

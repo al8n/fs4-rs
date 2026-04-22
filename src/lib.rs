@@ -1,5 +1,5 @@
 //! Extended utilities for working with files and filesystems in Rust.
-#![doc(html_root_url = "https://docs.rs/fs4/1.0.0")]
+#![doc(html_root_url = "https://docs.rs/fs4/1.0.1")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![allow(unexpected_cfgs, unstable_name_collisions)]
@@ -222,4 +222,73 @@ where
   P: AsRef<Path>,
 {
   statvfs(path).map(|stat| stat.allocation_granularity)
+}
+
+#[cfg(test)]
+mod tests {
+  //! The `free_space` / `available_space` / `total_space` helpers
+  //! each forward to `statvfs(...).map(|s| s.<field>)`. The
+  //! `FsStats` getter tests in `fs_stats.rs` cover the field
+  //! accessors; these tests cover the top-level forwarders (which
+  //! were previously uncovered in CI per Codecov).
+  //!
+  //! Assertions are intentionally loose: we don't compare the three
+  //! numbers across separate `statvfs` calls because that races
+  //! with concurrent filesystem activity (other tests, the OS,
+  //! etc.). Proving the call returned `Ok` with a plausible value
+  //! is enough to exercise the forwarding path.
+  extern crate tempfile;
+
+  use super::*;
+
+  fn tempdir() -> tempfile::TempDir {
+    tempfile::TempDir::with_prefix("fs4").unwrap()
+  }
+
+  #[test]
+  fn free_space_returns_ok() {
+    let dir = tempdir();
+    let free = free_space(dir.path()).unwrap();
+    let total = total_space(dir.path()).unwrap();
+    assert!(
+      free <= total,
+      "free_space ({free}) must not exceed total_space ({total})",
+    );
+  }
+
+  #[test]
+  fn available_space_returns_ok() {
+    let dir = tempdir();
+    let available = available_space(dir.path()).unwrap();
+    let total = total_space(dir.path()).unwrap();
+    assert!(
+      available <= total,
+      "available_space ({available}) must not exceed total_space ({total})",
+    );
+  }
+
+  #[test]
+  fn total_space_is_non_zero() {
+    let dir = tempdir();
+    assert!(
+      total_space(dir.path()).unwrap() > 0,
+      "total_space on a tempdir's volume should be non-zero",
+    );
+  }
+
+  /// POSIX `statvfs` returns `ENOENT` for a path that doesn't
+  /// exist, which is how we exercise the error-propagation branch
+  /// of the three forwarders. Windows has different semantics:
+  /// `GetVolumePathNameW` resolves any syntactically valid path to
+  /// its volume root regardless of whether the path itself exists,
+  /// so `statvfs(missing)` returns `Ok` on that platform.
+  #[cfg(unix)]
+  #[test]
+  fn missing_path_errors() {
+    let dir = tempdir();
+    let missing = dir.path().join("definitely-does-not-exist");
+    assert!(free_space(&missing).is_err());
+    assert!(available_space(&missing).is_err());
+    assert!(total_space(&missing).is_err());
+  }
 }
