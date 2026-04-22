@@ -319,6 +319,12 @@ macro_rules! test_mod {
             }
 
             /// Checks filesystem space methods.
+            ///
+            /// Does not assert `available_space <= free_space`: on
+            /// macOS APFS the kernel reports `f_bavail > f_bfree`
+            /// because purgeable space (snapshots, cached data) is
+            /// counted as available but not as free, so the usual
+            /// POSIX invariant does not hold.
             #[test]
             fn filesystem_space() {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
@@ -329,9 +335,8 @@ macro_rules! test_mod {
                     ..
                 } = statvfs(tempdir.path()).unwrap();
 
-                assert!(total_space > free_space);
-                assert!(total_space > available_space);
-                assert!(available_space <= free_space);
+                assert!(total_space >= free_space);
+                assert!(total_space >= available_space);
             }
 
         }

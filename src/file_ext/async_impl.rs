@@ -122,10 +122,7 @@ macro_rules! test_mod {
         #[cfg(test)]
         mod test {
             extern crate tempfile;
-            use crate::{
-                allocation_granularity, available_space, free_space,
-                total_space, TryLockError,
-            };
+            use crate::{allocation_granularity, TryLockError};
 
             $(
                 $use_stmt
@@ -321,16 +318,30 @@ macro_rules! test_mod {
             }
 
             /// Checks filesystem space methods.
+            ///
+            /// Uses a single `statvfs` call + destructure so the three
+            /// numbers are read atomically; calling `free_space` /
+            /// `available_space` / `total_space` separately makes the
+            /// assertions race with concurrent filesystem activity
+            /// from other tests.
+            ///
+            /// Does not assert `available_space <= free_space`: on
+            /// macOS APFS the kernel reports `f_bavail > f_bfree`
+            /// because purgeable space (snapshots, cached data) is
+            /// counted as available but not as free, so the usual
+            /// POSIX invariant does not hold.
             #[$annotation]
             async fn filesystem_space() {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                let total_space = total_space(tempdir.path()).unwrap();
-                let free_space = free_space(tempdir.path()).unwrap();
-                let available_space = available_space(tempdir.path()).unwrap();
+                let crate::FsStats {
+                    free_space,
+                    available_space,
+                    total_space,
+                    ..
+                } = crate::statvfs(tempdir.path()).unwrap();
 
-                assert!(total_space > free_space);
-                assert!(total_space > available_space);
-                assert!(available_space <= free_space);
+                assert!(total_space >= free_space);
+                assert!(total_space >= available_space);
             }
         }
     };
