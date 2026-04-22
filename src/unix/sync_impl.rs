@@ -1,58 +1,65 @@
 macro_rules! allocate_size {
-    ($file:ty) => {
-        pub fn allocated_size(file: &$file) -> std::io::Result<u64> {
-            file.metadata().map(|m| m.blocks() * 512)
-        }
-    };
+  ($file:ty) => {
+    pub fn allocated_size(file: &$file) -> std::io::Result<u64> {
+      file.metadata().map(|m| m.blocks() * 512)
+    }
+  };
 }
 
 macro_rules! allocate {
-    ($file:ty) => {
-        #[cfg(any(
-            target_os = "linux",
-            target_os = "freebsd",
-            target_os = "android",
-            target_os = "emscripten",
-            target_os = "nacl",
-            target_os = "macos",
-            target_os = "ios",
-            target_os = "watchos",
-            target_os = "tvos"
-        ))]
-        pub fn allocate(file: &$file, len: u64) -> std::io::Result<()> {
-            use rustix::{
-                fd::BorrowedFd,
-                fs::{fallocate, FallocateFlags},
-            };
-            unsafe {
-                let borrowed_fd = BorrowedFd::borrow_raw(file.as_raw_fd());
-                match fallocate(borrowed_fd, FallocateFlags::empty(), 0, len) {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(std::io::Error::from_raw_os_error(e.raw_os_error())),
-                }
-            }
+  ($file:ty) => {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "freebsd",
+      target_os = "android",
+      target_os = "emscripten",
+      target_os = "nacl",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "watchos",
+      target_os = "tvos"
+    ))]
+    pub fn allocate(file: &$file, len: u64) -> std::io::Result<()> {
+      use rustix::{
+        fd::BorrowedFd,
+        fs::{fallocate, FallocateFlags},
+      };
+      // See the comment in file_ext/sync_impl.rs. Short-circuit when the
+      // file is already large enough to avoid the macOS
+      // `F_PREALLOCATE` re-allocate-ENOSPC issue (#15).
+      if file.metadata()?.len() >= len {
+        return Ok(());
+      }
+      unsafe {
+        let borrowed_fd = BorrowedFd::borrow_raw(file.as_raw_fd());
+        match fallocate(borrowed_fd, FallocateFlags::empty(), 0, len) {
+          Ok(_) => Ok(()),
+          Err(e) => Err(std::io::Error::from_raw_os_error(e.raw_os_error())),
         }
+      }
+    }
 
-        #[cfg(any(
-            target_os = "aix",
-            target_os = "openbsd",
-            target_os = "netbsd",
-            target_os = "dragonfly",
-            target_os = "redox",
-            target_os = "solaris",
-            target_os = "illumos",
-            target_os = "haiku",
-            target_os = "hurd",
-        ))]
-        pub fn allocate(file: &$file, len: u64) -> std::io::Result<()> {
-            // No file allocation API available, just set the length if necessary.
-            if len > file.metadata()?.len() as u64 {
-                file.set_len(len)
-            } else {
-                Ok(())
-            }
-        }
-    };
+    #[cfg(any(
+      target_os = "aix",
+      target_os = "openbsd",
+      target_os = "netbsd",
+      target_os = "dragonfly",
+      target_os = "redox",
+      target_os = "solaris",
+      target_os = "illumos",
+      target_os = "haiku",
+      target_os = "hurd",
+      target_os = "cygwin",
+    ))]
+    pub fn allocate(file: &$file, len: u64) -> std::io::Result<()> {
+      // No file allocation API available, just set the length if necessary.
+      if len > file.metadata()?.len() as u64 {
+        file.set_len(len)
+      } else {
+        Ok(())
+      }
+    }
+  };
 }
 
 macro_rules! test_mod {
@@ -60,6 +67,8 @@ macro_rules! test_mod {
         #[cfg(test)]
         mod test {
           extern crate tempfile;
+
+          use crate::TryLockError;
 
           $(
               $use_stmt
@@ -85,16 +94,16 @@ macro_rules! test_mod {
                   .unwrap();
 
               // Creating a shared lock will drop an exclusive lock.
-              FileExt::lock_exclusive(&file1).unwrap();
+              FileExt::lock(&file1).unwrap();
               FileExt::lock_shared(&file1).unwrap();
               FileExt::lock_shared(&file2).unwrap();
 
               // Attempting to replace a shared lock with an exclusive lock will fail
               // with multiple lock holders, and remove the original shared lock.
-              assert_eq!(
-                  FileExt::try_lock_exclusive(&file2).unwrap(),
-                  false,
-              );
+              assert!(matches!(
+                  FileExt::try_lock(&file2),
+                  Err(TryLockError::WouldBlock),
+              ));
               FileExt::lock_shared(&file1).unwrap();
           }
         }

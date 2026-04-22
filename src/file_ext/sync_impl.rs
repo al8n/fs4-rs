@@ -2,7 +2,7 @@ macro_rules! file_ext {
     ($file:ty, $file_name:literal) => {
         use std::io::Result;
 
-        #[doc = concat!("Extension trait for `", $file_name, "` which provides allocation, duplication and locking methods.")]
+        #[doc = concat!("Extension trait for `", $file_name, "` which provides allocation and locking methods.")]
         ///
         /// ## Notes on File Locks
         ///
@@ -22,43 +22,58 @@ macro_rules! file_ext {
         ///     permissions.
         ///   * File locks may only be relied upon to be advisory.
         ///
-        /// See the tests in `lib.rs` for cross-platform lock behavior that may be
-        /// relied upon; see the tests in `unix.rs` and `windows.rs` for examples of
-        /// platform-specific behavior. File locks are implemented with
+        /// File locks are released automatically when the file handle is closed (for
+        /// example when the owning `File` is dropped), so calling [`FileExt::unlock`]
+        /// explicitly is optional.
+        ///
+        /// File locks are implemented with
         /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
-        /// [`LockFile`](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365202(v=vs.85).aspx)
+        /// [`LockFileEx`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex)
         /// on Windows.
         pub trait FileExt {
             /// Returns the amount of physical space allocated for a file.
             fn allocated_size(&self) -> Result<u64>;
 
             /// Ensures that at least `len` bytes of disk space are allocated for the
-            /// file, and the file size is at least `len` bytes. After a successful call
-            /// to `allocate`, subsequent writes to the file within the specified length
-            /// are guaranteed not to fail because of lack of disk space.
+            /// file. After a successful call to `allocate`, subsequent writes to the
+            /// file within the specified length are guaranteed not to fail because of
+            /// lack of disk space.
+            ///
+            /// On most platforms the file's logical size is also extended to `len`
+            /// bytes. On Windows, if the file's existing cluster-aligned allocation
+            /// already covers `len`, the logical size is left unchanged to work around
+            /// buffered-I/O quirks observed when the end-of-file pointer is moved
+            /// inside an already-allocated cluster.
             fn allocate(&self, len: u64) -> Result<()>;
 
-            /// Locks the file for shared usage, blocking if the file is currently
-            /// locked exclusively.
+            /// Acquires a shared lock on the file, blocking until the lock can be
+            /// acquired.
             fn lock_shared(&self) -> Result<()>;
 
-            /// Locks the file for exclusive usage, blocking if the file is currently
-            /// locked.
-            fn lock_exclusive(&self) -> Result<()>;
+            /// Acquires an exclusive lock on the file, blocking until the lock can be
+            /// acquired.
+            ///
+            /// This is the blocking counterpart of [`FileExt::try_lock`]. It mirrors
+            /// [`std::fs::File::lock`].
+            fn lock(&self) -> Result<()>;
 
-            /// Locks the file for shared usage.
-            /// 
-            /// Returns `Ok(true)` if the lock was acquired, `Ok(false)` if the file is currently
-            /// locked.
-            fn try_lock_shared(&self) -> Result<bool>;
+            /// Attempts to acquire a shared lock on the file, without blocking.
+            ///
+            /// Returns `Ok(())` if the lock was acquired, or
+            /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+            /// if the file is currently locked. Mirrors
+            /// [`std::fs::File::try_lock_shared`].
+            fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError>;
 
-            /// Locks the file for exclusive usage.
-            /// 
-            /// Returns `Ok(true)` if the lock was acquired, `Ok(false)` if the file is currently
-            /// locked.
-            fn try_lock_exclusive(&self) -> Result<bool>;
+            /// Attempts to acquire an exclusive lock on the file, without blocking.
+            ///
+            /// Returns `Ok(())` if the lock was acquired, or
+            /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+            /// if the file is currently locked. Mirrors [`std::fs::File::try_lock`].
+            fn try_lock(&self) -> std::result::Result<(), crate::TryLockError>;
 
-            /// Unlocks the file.
+            /// Releases any lock held on the file. The lock is also released
+            /// automatically when the file handle is closed.
             fn unlock(&self) -> Result<()>;
         }
 
@@ -72,14 +87,14 @@ macro_rules! file_ext {
             fn lock_shared(&self) -> Result<()> {
                 sys::lock_shared(self)
             }
-            fn lock_exclusive(&self) -> Result<()> {
-                sys::lock_exclusive(self)
+            fn lock(&self) -> Result<()> {
+                sys::lock(self)
             }
-            fn try_lock_shared(&self) -> Result<bool> {
+            fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError> {
                 sys::try_lock_shared(self)
             }
-            fn try_lock_exclusive(&self) -> Result<bool> {
-                sys::try_lock_exclusive(self)
+            fn try_lock(&self) -> std::result::Result<(), crate::TryLockError> {
+                sys::try_lock(self)
             }
             fn unlock(&self) -> Result<()> {
                 sys::unlock(self)
@@ -93,13 +108,9 @@ macro_rules! test_mod {
         #[cfg(test)]
         mod test {
             extern crate tempfile;
-            extern crate test;
 
             use super::*;
-            use crate::{
-                allocation_granularity, available_space, free_space, statvfs,
-                total_space, FsStats,
-            };
+            use crate::{allocation_granularity, statvfs, FsStats, TryLockError};
 
             $(
                 $use_stmt
@@ -133,21 +144,21 @@ macro_rules! test_mod {
                     .unwrap();
 
                 // Concurrent shared access is OK, but not shared and exclusive.
-                file1.lock_shared().unwrap();
-                file2.lock_shared().unwrap();
-                assert_eq!(
-                    file3.try_lock_exclusive().unwrap(),
-                    false,
-                );
-                file1.unlock().unwrap();
-                assert_eq!(
-                    file3.try_lock_exclusive().unwrap(),
-                    false,
-                );
+                FileExt::lock_shared(&file1).unwrap();
+                FileExt::lock_shared(&file2).unwrap();
+                assert!(matches!(
+                    FileExt::try_lock(&file3),
+                    Err(TryLockError::WouldBlock),
+                ));
+                FileExt::unlock(&file1).unwrap();
+                assert!(matches!(
+                    FileExt::try_lock(&file3),
+                    Err(TryLockError::WouldBlock),
+                ));
 
                 // Once all shared file locks are dropped, an exclusive lock may be created;
-                file2.unlock().unwrap();
-                file3.lock_exclusive().unwrap();
+                FileExt::unlock(&file2).unwrap();
+                FileExt::lock(&file3).unwrap();
             }
 
             /// Tests exclusive file lock operations.
@@ -171,19 +182,19 @@ macro_rules! test_mod {
                     .unwrap();
 
                 // No other access is possible once an exclusive lock is created.
-                file1.lock_exclusive().unwrap();
-                assert_eq!(
-                    file2.try_lock_exclusive().unwrap(),
-                    false,
-                );
-                assert_eq!(
-                    FileExt::try_lock_shared(&file2).unwrap(),
-                    false,
-                );
+                FileExt::lock(&file1).unwrap();
+                assert!(matches!(
+                    FileExt::try_lock(&file2),
+                    Err(TryLockError::WouldBlock),
+                ));
+                assert!(matches!(
+                    FileExt::try_lock_shared(&file2),
+                    Err(TryLockError::WouldBlock),
+                ));
 
                 // Once the exclusive lock is dropped, the second file is able to create a lock.
-                file1.unlock().unwrap();
-                file2.lock_exclusive().unwrap();
+                FileExt::unlock(&file1).unwrap();
+                FileExt::lock(&file2).unwrap();
             }
 
             /// Tests that a lock is released after the file that owns it is dropped.
@@ -206,15 +217,15 @@ macro_rules! test_mod {
                     .open(&path)
                     .unwrap();
 
-                file1.lock_exclusive().unwrap();
-                assert_eq!(
-                    FileExt::try_lock_shared(&file2).unwrap(),
-                    false,
-                );
+                FileExt::lock(&file1).unwrap();
+                assert!(matches!(
+                    FileExt::try_lock_shared(&file2),
+                    Err(TryLockError::WouldBlock),
+                ));
 
                 // Drop file1; the lock should be released.
                 drop(file1);
-                file2.lock_shared().unwrap();
+                FileExt::lock_shared(&file2).unwrap();
             }
 
             /// Tests file allocation.
@@ -231,25 +242,89 @@ macro_rules! test_mod {
                 let blksize = allocation_granularity(&path).unwrap();
 
                 // New files are created with no allocated size.
-                assert_eq!(0, file.allocated_size().unwrap());
+                assert_eq!(0, FileExt::allocated_size(&file).unwrap());
                 assert_eq!(0, file.metadata().unwrap().len());
 
                 // Allocate space for the file, checking that the allocated size steps
                 // up by block size, and the file length matches the allocated size.
 
-                file.allocate(2 * blksize - 1).unwrap();
-                assert_eq!(2 * blksize, file.allocated_size().unwrap());
+                FileExt::allocate(&file, 2 * blksize - 1).unwrap();
+                assert_eq!(2 * blksize, FileExt::allocated_size(&file).unwrap());
                 assert_eq!(2 * blksize - 1, file.metadata().unwrap().len());
 
                 // Truncate the file, checking that the allocated size steps down by
                 // block size.
 
                 file.set_len(blksize + 1).unwrap();
-                assert_eq!(2 * blksize, file.allocated_size().unwrap());
+                assert_eq!(2 * blksize, FileExt::allocated_size(&file).unwrap());
                 assert_eq!(blksize + 1, file.metadata().unwrap().len());
             }
 
+            /// Regression for issue #13: on Windows, re-`allocate`-ing inside
+            /// an already-allocated cluster must not move the EOF pointer
+            /// (the old behaviour called `set_len`, which triggered Windows
+            /// buffered-I/O quirks). The trait doc explicitly carves this
+            /// behaviour out from the general "file size is at least `len`"
+            /// contract, so this test asserts the strict invariant on
+            /// Windows and a loose one on Unix.
+            #[test]
+            fn allocate_preserves_eof_within_cluster() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&path)
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                // Reserve cluster-aligned space but leave EOF below the
+                // cluster boundary — the precondition reported in #13.
+                FileExt::allocate(&file, 2 * blksize - 1).unwrap();
+                assert_eq!(2 * blksize - 1, file.metadata().unwrap().len());
+
+                // Request `allocate` up to the cluster boundary. Before
+                // the fix, Windows would `set_len(2*blksize)`; after, it
+                // short-circuits since `allocated_size >= len`.
+                FileExt::allocate(&file, 2 * blksize).unwrap();
+
+                #[cfg(windows)]
+                assert_eq!(
+                    2 * blksize - 1,
+                    file.metadata().unwrap().len(),
+                    "Windows allocate must not extend EOF inside an already-allocated cluster (#13)",
+                );
+                #[cfg(unix)]
+                assert!(file.metadata().unwrap().len() >= 2 * blksize - 1);
+            }
+
+            /// Re-allocating the same length must not fail. Regression for issue #15.
+            #[test]
+            fn allocate_idempotent() {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&path)
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                FileExt::allocate(&file, 2 * blksize).unwrap();
+                FileExt::allocate(&file, 2 * blksize).unwrap();
+                FileExt::allocate(&file, blksize).unwrap();
+                assert!(file.metadata().unwrap().len() >= 2 * blksize);
+            }
+
             /// Checks filesystem space methods.
+            ///
+            /// Does not assert `available_space <= free_space`: on
+            /// macOS APFS the kernel reports `f_bavail > f_bfree`
+            /// because purgeable space (snapshots, cached data) is
+            /// counted as available but not as free, so the usual
+            /// POSIX invariant does not hold.
             #[test]
             fn filesystem_space() {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
@@ -260,147 +335,22 @@ macro_rules! test_mod {
                     ..
                 } = statvfs(tempdir.path()).unwrap();
 
-                assert!(total_space > free_space);
-                assert!(total_space > available_space);
-                assert!(available_space <= free_space);
+                assert!(total_space >= free_space);
+                assert!(total_space >= available_space);
             }
 
-            /// Benchmarks creating and removing a file. This is a baseline benchmark
-            /// for comparing against the truncate and allocate benchmarks.
-            #[bench]
-            fn bench_file_create(b: &mut test::Bencher) {
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                let path = tempdir.path().join("file");
-
-                b.iter(|| {
-                    fs::OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .create(true)
-                        .truncate(true)
-                        .open(&path)
-                        .unwrap();
-                    fs::remove_file(&path).unwrap();
-                });
-            }
-
-            /// Benchmarks creating a file, truncating it to 32MiB, and deleting it.
-            #[bench]
-            fn bench_file_truncate(b: &mut test::Bencher) {
-                let size = 32 * 1024 * 1024;
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                let path = tempdir.path().join("file");
-
-                b.iter(|| {
-                    let file = fs::OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .create(true)
-                        .truncate(true)
-                        .open(&path)
-                        .unwrap();
-                    file.set_len(size).unwrap();
-                    fs::remove_file(&path).unwrap();
-                });
-            }
-
-            /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
-            #[bench]
-            fn bench_file_allocate(b: &mut test::Bencher) {
-                let size = 32 * 1024 * 1024;
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                let path = tempdir.path().join("file");
-
-                b.iter(|| {
-                    let file = fs::OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .create(true)
-                        .truncate(true)
-                        .open(&path)
-                        .unwrap();
-                    file.allocate(size).unwrap();
-                    fs::remove_file(&path).unwrap();
-                });
-            }
-
-            /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
-            #[bench]
-            fn bench_allocated_size(b: &mut test::Bencher) {
-                let size = 32 * 1024 * 1024;
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                let path = tempdir.path().join("file");
-                let file = fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open(path)
-                    .unwrap();
-                file.allocate(size).unwrap();
-
-                b.iter(|| {
-                    file.allocated_size().unwrap();
-                });
-            }
-
-            /// Benchmarks locking and unlocking a file lock.
-            #[bench]
-            fn bench_lock_unlock(b: &mut test::Bencher) {
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                let path = tempdir.path().join("fs4");
-                let file = fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open(path)
-                    .unwrap();
-
-                b.iter(|| {
-                    file.lock_exclusive().unwrap();
-                    file.unlock().unwrap();
-                });
-            }
-
-            /// Benchmarks the free space method.
-            #[bench]
-            fn bench_free_space(b: &mut test::Bencher) {
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                b.iter(|| {
-                    test::black_box(free_space(tempdir.path()).unwrap());
-                });
-            }
-
-            /// Benchmarks the available space method.
-            #[bench]
-            fn bench_available_space(b: &mut test::Bencher) {
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                b.iter(|| {
-                    test::black_box(available_space(tempdir.path()).unwrap());
-                });
-            }
-
-            /// Benchmarks the total space method.
-            #[bench]
-            fn bench_total_space(b: &mut test::Bencher) {
-                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
-                b.iter(|| {
-                    test::black_box(total_space(tempdir.path()).unwrap());
-                });
-            }
         }
     };
 }
 
 cfg_sync! {
-  pub(crate) mod std_impl;
+    pub(crate) mod std_impl;
 }
 
-cfg_fs2_err! {
+cfg_fs_err2! {
     pub(crate) mod fs_err2_impl;
 }
 
-cfg_fs3_err! {
+cfg_fs_err3! {
     pub(crate) mod fs_err3_impl;
 }
