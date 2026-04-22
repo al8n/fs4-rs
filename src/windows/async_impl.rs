@@ -1,51 +1,58 @@
 macro_rules! allocate_size {
-    ($file: ty) => {
-        pub async fn allocated_size(file: &$file) -> Result<u64> {
-            unsafe {
-                let mut info: FILE_STANDARD_INFO = mem::zeroed();
+  ($file: ty) => {
+    pub async fn allocated_size(file: &$file) -> Result<u64> {
+      unsafe {
+        let mut info: FILE_STANDARD_INFO = mem::zeroed();
 
-                let ret = GetFileInformationByHandleEx(
-                    file.as_raw_handle() as HANDLE,
-                    FileStandardInfo,
-                    &mut info as *mut _ as *mut _,
-                    mem::size_of::<FILE_STANDARD_INFO>() as u32,
-                );
+        let ret = GetFileInformationByHandleEx(
+          file.as_raw_handle() as HANDLE,
+          FileStandardInfo,
+          &mut info as *mut _ as *mut _,
+          mem::size_of::<FILE_STANDARD_INFO>() as u32,
+        );
 
-                if ret == 0 {
-                    Err(Error::last_os_error())
-                } else {
-                    Ok(info.AllocationSize as u64)
-                }
-            }
+        if ret == 0 {
+          Err(Error::last_os_error())
+        } else {
+          Ok(info.AllocationSize as u64)
         }
-    };
+      }
+    }
+  };
 }
 
 macro_rules! allocate {
-    ($file: ty) => {
-        pub async fn allocate(file: &$file, len: u64) -> Result<()> {
-            if allocated_size(file).await? < len {
-                unsafe {
-                    let mut info: FILE_ALLOCATION_INFO = mem::zeroed();
-                    info.AllocationSize = len as i64;
-                    let ret = SetFileInformationByHandle(
-                        file.as_raw_handle() as HANDLE,
-                        FileAllocationInfo,
-                        &mut info as *mut _ as *mut _,
-                        mem::size_of::<FILE_ALLOCATION_INFO>() as u32,
-                    );
-                    if ret == 0 {
-                        return Err(Error::last_os_error());
-                    }
-                }
-            }
-            if file.metadata().await?.len() < len {
-                file.set_len(len).await
-            } else {
-                Ok(())
-            }
+  ($file: ty) => {
+    pub async fn allocate(file: &$file, len: u64) -> Result<()> {
+      // See the comment in windows/sync_impl.rs — if the
+      // existing cluster-aligned allocation already covers
+      // `len`, don't touch EOF. This avoids the Windows
+      // buffered-I/O quirks seen when `set_len` is called on a
+      // file whose logical EOF is less than `AllocationSize`
+      // (issue #13).
+      if allocated_size(file).await? >= len {
+        return Ok(());
+      }
+      unsafe {
+        let mut info: FILE_ALLOCATION_INFO = mem::zeroed();
+        info.AllocationSize = len as i64;
+        let ret = SetFileInformationByHandle(
+          file.as_raw_handle() as HANDLE,
+          FileAllocationInfo,
+          &mut info as *mut _ as *mut _,
+          mem::size_of::<FILE_ALLOCATION_INFO>() as u32,
+        );
+        if ret == 0 {
+          return Err(Error::last_os_error());
         }
-    };
+      }
+      if file.metadata().await?.len() < len {
+        file.set_len(len).await
+      } else {
+        Ok(())
+      }
+    }
+  };
 }
 
 macro_rules! test_mod {
@@ -53,6 +60,8 @@ macro_rules! test_mod {
         #[cfg(test)]
         mod test {
           extern crate tempfile;
+
+          use crate::TryLockError;
 
           $(
               $use_stmt
@@ -73,19 +82,13 @@ macro_rules! test_mod {
                   .unwrap();
 
               // Multiple exclusive locks fails.
-              file.lock_exclusive().unwrap();
-              assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
-                  false
-              );
+              file.lock().unwrap();
+              assert!(matches!(file.try_lock(), Err(TryLockError::WouldBlock)));
               file.unlock().unwrap();
 
               // Shared then Exclusive locks fails.
               file.lock_shared().unwrap();
-              assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
-                  false
-              );
+              assert!(matches!(file.try_lock(), Err(TryLockError::WouldBlock)));
           }
 
           /// A file handle can hold an exclusive lock and any number of shared locks, all of which must
@@ -103,34 +106,31 @@ macro_rules! test_mod {
                   .unwrap();
 
               // Open two shared locks on the file, and then try and fail to open an exclusive lock.
-              file.lock_exclusive().unwrap();
+              file.lock().unwrap();
               file.lock_shared().unwrap();
               file.lock_shared().unwrap();
-              assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
-                  false,
+              assert!(
+                  matches!(file.try_lock(), Err(TryLockError::WouldBlock)),
                   "the first try lock exclusive",
               );
 
               // Pop one of the shared locks and try again.
               file.unlock().unwrap();
-              assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
-                  false,
-                    "pop the first shared lock",
+              assert!(
+                  matches!(file.try_lock(), Err(TryLockError::WouldBlock)),
+                  "pop the first shared lock",
               );
 
               // Pop the second shared lock and try again.
               file.unlock().unwrap();
-              assert_eq!(
-                  file.try_lock_exclusive().unwrap(),
-                  false,
-                    "pop the second shared lock",
+              assert!(
+                  matches!(file.try_lock(), Err(TryLockError::WouldBlock)),
+                  "pop the second shared lock",
               );
 
               // Pop the exclusive lock and finally succeed.
               file.unlock().unwrap();
-              file.lock_exclusive().unwrap();
+              file.lock().unwrap();
           }
 
           /// A file handle with multiple open locks will have all locks closed on drop.
@@ -155,13 +155,10 @@ macro_rules! test_mod {
 
               // Open two shared locks on the file, and then try and fail to open an exclusive lock.
               file1.lock_shared().unwrap();
-              assert_eq!(
-                  file2.try_lock_exclusive().unwrap(),
-                  false
-              );
+              assert!(matches!(file2.try_lock(), Err(TryLockError::WouldBlock)));
 
               drop(file1);
-              file2.lock_exclusive().unwrap();
+              file2.lock().unwrap();
           }
         }
     };

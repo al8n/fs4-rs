@@ -1,0 +1,147 @@
+name: coverage
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'COPYRIGHT'
+      - 'LICENSE-*'
+      - '**.md'
+      - '**.txt'
+  pull_request:
+    paths-ignore:
+      - 'COPYRIGHT'
+      - 'LICENSE-*'
+      - '**.md'
+      - '**.txt'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Matrix dimensions covered for Codecov to reflect the per-OS split of
+# fs4's platform code:
+#
+# - linux-x86_64:   src/unix.rs + src/unix/**, exercising rustix's
+#                   Linux `fallocate` path and `statvfs`.
+# - macos-aarch64:  src/unix.rs + src/unix/**, exercising rustix's
+#                   macOS `F_PREALLOCATE` path (different enough from
+#                   Linux that issue #15 was macOS-specific).
+# - windows-x86_64: src/windows.rs + src/windows/**, exercising the
+#                   Win32 lock + `FILE_ALLOCATION_INFO` APIs.
+#
+# On each runner we exclude the other OS's sources so they don't
+# register as 0/N uncovered lines. Codecov merges the three reports,
+# so every OS file ends up covered by its native host.
+#
+# `--all-features` on each host covers every feature-gated impl leaf
+# (crate-root `FileExt` for `std::fs::File`, plus `fs_err2`, `fs_err3`,
+# `tokio`, `smol`, `async_std`, `fs_err2_tokio`, `fs_err3_tokio`),
+# since they all expand from the same macros.
+
+jobs:
+  coverage:
+    name: coverage (${{ matrix.label }})
+    strategy:
+      matrix:
+        include:
+          # ---- Unix (Linux) ----
+          - os: ubuntu-latest
+            label: linux-x86_64
+            exclude_os: >-
+              --exclude-files 'src/windows.rs'
+              --exclude-files 'src/windows/**'
+
+          # ---- Unix (macOS / aarch64) ----
+          - os: macos-latest
+            label: macos-aarch64
+            exclude_os: >-
+              --exclude-files 'src/windows.rs'
+              --exclude-files 'src/windows/**'
+
+          # ---- Windows ----
+          - os: windows-latest
+            label: windows-x86_64
+            exclude_os: >-
+              --exclude-files 'src/unix.rs'
+              --exclude-files 'src/unix/**'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        # `llvm-tools-preview` is required by `cargo tarpaulin --engine
+        # llvm`, which is the only tarpaulin engine that works
+        # uniformly on Linux + macOS + Windows.
+        shell: bash
+        run: |
+          rustup toolchain install stable --component llvm-tools-preview --profile minimal
+          rustup default stable
+
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+
+      - name: Generate coverage
+        shell: bash
+        # --engine llvm:      works on all three OSes (ptrace is Linux-only).
+        # --all-features:     exercise every feature-gated impl leaf.
+        # --run-types tests:  run `cargo test` targets only (skip doctests
+        #                     since the crate has no doctests, and benches,
+        #                     since `cargo test` does not execute them).
+        # --ignore-tests:     omit test/bench function bodies from the
+        #                     coverage percentage; measure the library,
+        #                     not the test harness.
+        # Lock-test parallelism: the filesystem_space tests share /tmp
+        # with each other and can flap when run in parallel. Force
+        # single-threaded execution, matching ci.yml.
+        run: |
+          mkdir -p coverage
+          cargo tarpaulin \
+            --engine llvm \
+            --all-features \
+            --run-types tests \
+            --ignore-tests \
+            ${{ matrix.exclude_os }} \
+            --out xml \
+            --output-dir coverage \
+            -- --test-threads 1
+        continue-on-error: false
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.label }}
+          path: coverage/cobertura.xml
+
+  upload-codecov:
+    name: Upload merged coverage to Codecov
+    needs: coverage
+    runs-on: ubuntu-latest
+    if: always()
+    strategy:
+      fail-fast: false
+      matrix:
+        label:
+          - linux-x86_64
+          - macos-aarch64
+          - windows-x86_64
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download ${{ matrix.label }} report
+        uses: actions/download-artifact@v6
+        with:
+          name: coverage-${{ matrix.label }}
+          path: coverage/
+
+      - name: Upload ${{ matrix.label }} to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage/cobertura.xml
+          flags: ${{ matrix.label }}
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
