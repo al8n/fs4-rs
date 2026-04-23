@@ -2,6 +2,13 @@
 // which are feature-gated. With `--no-default-features` (nothing but
 // the filesystem-stats API enabled), this macro has no caller, so
 // silence the resulting unused-macro lint.
+//
+// The helpers take `&$file` and only cross the raw-handle boundary
+// (`as_raw_handle() as HANDLE`) at the FFI call site. Routing through
+// `AsHandle` / `BorrowedHandle` would be ideal but isn't uniformly
+// available: `async_std::fs::File`, `smol::fs::File`, and the
+// `fs_err{2,3}::tokio::File` wrappers only implement `AsRawHandle`
+// upstream, so we keep a single code path.
 #[allow(unused_macros)]
 macro_rules! lock_impl {
   ($file: ty) => {

@@ -3,6 +3,13 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![allow(unexpected_cfgs, unstable_name_collisions)]
+// The `cfg_<feature>!` macros below are only invoked by the Unix /
+// Windows `file_ext` backends, so on targets where neither `cfg(unix)`
+// nor `cfg(windows)` matches (e.g. `wasm32-wasi*`) they appear
+// unused. The crate still compiles there, just without the
+// filesystem extension traits, so silence the lint globally rather
+// than shadowing the macro definitions.
+#![cfg_attr(not(any(unix, windows)), allow(unused_macros))]
 
 #[cfg(windows)]
 extern crate windows_sys;
@@ -120,53 +127,60 @@ mod windows;
 #[cfg(windows)]
 use windows as sys;
 
+// The file-extension traits (`FileExt`, `AsyncFileExt`) and the stats
+// API are only implementable on targets with a real `sys` backend.
+// Anywhere else (notably `wasm32-wasi*`, where `target_family = "wasm"`
+// so neither `cfg(unix)` nor `cfg(windows)` matches and rustix does
+// not expose `statvfs` / `flock` / `fallocate`) the crate compiles
+// down to just the shared data types below.
+#[cfg(any(unix, windows))]
 mod file_ext;
 
-cfg_sync!(
-  pub use crate::file_ext::sync_impl::std_impl::FileExt;
-);
+#[cfg(all(feature = "sync", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "sync")))]
+pub use crate::file_ext::sync_impl::std_impl::FileExt;
 
-cfg_fs_err2!(
-  pub mod fs_err2 {
-    pub use crate::file_ext::sync_impl::fs_err2_impl::FileExt;
-  }
-);
+#[cfg(all(feature = "fs-err2", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "fs-err2")))]
+pub mod fs_err2 {
+  pub use crate::file_ext::sync_impl::fs_err2_impl::FileExt;
+}
 
-cfg_fs_err3!(
-  pub mod fs_err3 {
-    pub use crate::file_ext::sync_impl::fs_err3_impl::FileExt;
-  }
-);
+#[cfg(all(feature = "fs-err3", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "fs-err3")))]
+pub mod fs_err3 {
+  pub use crate::file_ext::sync_impl::fs_err3_impl::FileExt;
+}
 
-cfg_async_std!(
-  pub mod async_std {
-    pub use crate::file_ext::async_impl::async_std_impl::AsyncFileExt;
-  }
-);
+#[cfg(all(feature = "async-std", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
+pub mod async_std {
+  pub use crate::file_ext::async_impl::async_std_impl::AsyncFileExt;
+}
 
-cfg_fs_err2_tokio!(
-  pub mod fs_err2_tokio {
-    pub use crate::file_ext::async_impl::fs_err2_tokio_impl::AsyncFileExt;
-  }
-);
+#[cfg(all(feature = "fs-err2-tokio", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "fs-err2-tokio")))]
+pub mod fs_err2_tokio {
+  pub use crate::file_ext::async_impl::fs_err2_tokio_impl::AsyncFileExt;
+}
 
-cfg_fs_err3_tokio!(
-  pub mod fs_err3_tokio {
-    pub use crate::file_ext::async_impl::fs_err3_tokio_impl::AsyncFileExt;
-  }
-);
+#[cfg(all(feature = "fs-err3-tokio", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "fs-err3-tokio")))]
+pub mod fs_err3_tokio {
+  pub use crate::file_ext::async_impl::fs_err3_tokio_impl::AsyncFileExt;
+}
 
-cfg_smol!(
-  pub mod smol {
-    pub use crate::file_ext::async_impl::smol_impl::AsyncFileExt;
-  }
-);
+#[cfg(all(feature = "smol", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
+pub mod smol {
+  pub use crate::file_ext::async_impl::smol_impl::AsyncFileExt;
+}
 
-cfg_tokio!(
-  pub mod tokio {
-    pub use crate::file_ext::async_impl::tokio_impl::AsyncFileExt;
-  }
-);
+#[cfg(all(feature = "tokio", any(unix, windows)))]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+pub mod tokio {
+  pub use crate::file_ext::async_impl::tokio_impl::AsyncFileExt;
+}
 
 mod fs_stats;
 pub use fs_stats::FsStats;
@@ -174,10 +188,13 @@ pub use fs_stats::FsStats;
 mod try_lock_error;
 pub use try_lock_error::TryLockError;
 
+#[cfg(any(unix, windows))]
 use std::io::Result;
+#[cfg(any(unix, windows))]
 use std::path::Path;
 
 /// Get the stats of the file system containing the provided path.
+#[cfg(any(unix, windows))]
 pub fn statvfs<P>(path: P) -> Result<FsStats>
 where
   P: AsRef<Path>,
@@ -187,6 +204,7 @@ where
 
 /// Returns the number of free bytes in the file system containing the provided
 /// path.
+#[cfg(any(unix, windows))]
 pub fn free_space<P>(path: P) -> Result<u64>
 where
   P: AsRef<Path>,
@@ -196,6 +214,7 @@ where
 
 /// Returns the available space in bytes to non-privileged users in the file
 /// system containing the provided path.
+#[cfg(any(unix, windows))]
 pub fn available_space<P>(path: P) -> Result<u64>
 where
   P: AsRef<Path>,
@@ -205,6 +224,7 @@ where
 
 /// Returns the total space in bytes in the file system containing the provided
 /// path.
+#[cfg(any(unix, windows))]
 pub fn total_space<P>(path: P) -> Result<u64>
 where
   P: AsRef<Path>,
@@ -217,6 +237,7 @@ where
 ///
 /// On Posix, this is equivalent to the filesystem's block size.
 /// On Windows, this is equivalent to the filesystem's cluster size.
+#[cfg(any(unix, windows))]
 pub fn allocation_granularity<P>(path: P) -> Result<u64>
 where
   P: AsRef<Path>,
@@ -224,7 +245,7 @@ where
   statvfs(path).map(|stat| stat.allocation_granularity)
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(unix, windows)))]
 mod tests {
   //! The `free_space` / `available_space` / `total_space` helpers
   //! each forward to `statvfs(...).map(|s| s.<field>)`. The

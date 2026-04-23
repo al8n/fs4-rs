@@ -30,6 +30,14 @@ macro_rules! lock_impl {
       flock(file, rustix::fs::FlockOperation::Unlock)
     }
 
+    // `BorrowedFd::borrow_raw` is used (instead of `AsFd::as_fd`)
+    // because half of the supported file types -- `async_std::fs::File`,
+    // `smol::fs::File`, `fs_err2::tokio::File`, and `fs_err3::tokio::File`
+    // -- only expose `AsRawFd` upstream. Routing everything through
+    // `as_raw_fd()` keeps one implementation instead of splitting the
+    // macro into safe/unsafe variants. The `BorrowedFd` never outlives
+    // the `&$file` reference, so the bounded lifetime holds even
+    // though the conversion itself is `unsafe`.
     #[cfg(not(target_os = "wasi"))]
     fn flock(file: &$file, flag: rustix::fs::FlockOperation) -> std::io::Result<()> {
       let borrowed_fd = unsafe { rustix::fd::BorrowedFd::borrow_raw(file.as_raw_fd()) };
