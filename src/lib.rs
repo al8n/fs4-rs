@@ -2,14 +2,14 @@
 #![doc(html_root_url = "https://docs.rs/fs4/1.0.1")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
-#![allow(unexpected_cfgs, unstable_name_collisions)]
-// The `cfg_<feature>!` macros below are only invoked by the Unix /
-// Windows `file_ext` backends, so on targets where neither `cfg(unix)`
-// nor `cfg(windows)` matches (e.g. `wasm32-wasi*`) they appear
-// unused. The crate still compiles there, just without the
-// filesystem extension traits, so silence the lint globally rather
-// than shadowing the macro definitions.
-#![cfg_attr(not(any(unix, windows)), allow(unused_macros))]
+// The `cfg_<feature>!` macros below are only invoked inside
+// feature-gated modules -- every call site is itself behind
+// `#[cfg(feature = "...")]` or inside the Unix/Windows backend
+// trees. With `--no-default-features` (or on targets where neither
+// `cfg(unix)` nor `cfg(windows)` matches, e.g. `wasm32-wasi*`), all
+// call sites compile out, so the macros appear unused. Silence the
+// lint at the crate level rather than shadowing each definition.
+#![allow(unexpected_cfgs, unstable_name_collisions, unused_macros)]
 
 #[cfg(windows)]
 extern crate windows_sys;
