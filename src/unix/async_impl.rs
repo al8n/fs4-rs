@@ -24,6 +24,8 @@ macro_rules! allocate {
       if file.metadata().await?.blocks().saturating_mul(512) >= len {
         return Ok(());
       }
+      // See the comment on `flock` in src/unix.rs for why we use
+      // `BorrowedFd::borrow_raw` rather than `AsFd::as_fd`.
       unsafe {
         let borrowed_fd = BorrowedFd::borrow_raw(file.as_raw_fd());
         match fallocate(borrowed_fd, FallocateFlags::empty(), 0, len) {
