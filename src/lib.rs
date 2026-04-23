@@ -1,5 +1,5 @@
 //! Extended utilities for working with files and filesystems in Rust.
-#![doc(html_root_url = "https://docs.rs/fs4/1.0.1")]
+#![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 // The `cfg_<feature>!` macros below are only invoked inside
