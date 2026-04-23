@@ -1,4 +1,3 @@
-//! Extended utilities for working with files and filesystems in Rust.
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
