@@ -183,7 +183,6 @@ pub use fs_stats::FsStats;
 mod try_lock_error;
 pub use try_lock_error::TryLockError;
 
-#[cfg(any(unix, windows))]
 use std::io::Result;
 #[cfg(any(unix, windows))]
 use std::path::Path;
