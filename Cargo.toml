@@ -47,7 +47,7 @@ fs-err3 = { package = "fs-err", version = "3", features = ["tokio"] }
 smol-potat = "1.1"
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }
-libc = "0.2"
+
 
 [package.metadata.docs.rs]
 all-features = true
