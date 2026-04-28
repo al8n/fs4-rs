@@ -2,6 +2,8 @@ macro_rules! file_ext {
   ($file:ty, $file_name:literal) => {
     use std::io::Result;
 
+    impl $crate::sealed::Sealed for $file {}
+
     impl $crate::FileExt for $file {
       #[cfg_attr(not(tarpaulin), inline(always))]
       fn allocated_size(&self) -> Result<u64> {

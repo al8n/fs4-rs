@@ -2,6 +2,8 @@ macro_rules! async_file_ext {
     ($file: ty, $file_name: literal) => {
         use std::io::Result;
 
+        impl $crate::sealed::Sealed for $file {}
+
         impl $crate::AsyncFileExt for $file {
             async fn allocated_size(&self) -> Result<u64> {
                 sys::allocated_size(self).await
@@ -31,6 +33,48 @@ macro_rules! async_file_ext {
 
             async fn unlock_async(&self) -> Result<()> {
                 sys::unlock(self)
+            }
+        }
+
+        impl $crate::DynAsyncFileExt for $file {
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn allocated_size(&self) -> $crate::BoxFuture<'_, Result<u64>> {
+                Box::pin(<Self as $crate::AsyncFileExt>::allocated_size(self))
+            }
+
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn allocate(&self, len: u64) -> $crate::BoxFuture<'_, Result<()>> {
+                Box::pin(<Self as $crate::AsyncFileExt>::allocate(self, len))
+            }
+
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn lock_shared(&self) -> Result<()> {
+                <Self as $crate::AsyncFileExt>::lock_shared(self)
+            }
+
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn lock(&self) -> Result<()> {
+                <Self as $crate::AsyncFileExt>::lock(self)
+            }
+
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn try_lock_shared(&self) -> std::result::Result<(), $crate::TryLockError> {
+                <Self as $crate::AsyncFileExt>::try_lock_shared(self)
+            }
+
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn try_lock(&self) -> std::result::Result<(), $crate::TryLockError> {
+                <Self as $crate::AsyncFileExt>::try_lock(self)
+            }
+
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn unlock(&self) -> Result<()> {
+                <Self as $crate::AsyncFileExt>::unlock(self)
+            }
+
+            #[cfg_attr(not(tarpaulin), inline(always))]
+            fn unlock_async(&self) -> $crate::BoxFuture<'_, Result<()>> {
+                Box::pin(<Self as $crate::AsyncFileExt>::unlock_async(self))
             }
         }
     }
