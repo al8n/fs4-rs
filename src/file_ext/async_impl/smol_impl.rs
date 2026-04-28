@@ -8,6 +8,5 @@ async_file_ext!(File, "smol::fs::File");
 
 test_mod! {
   smol_potat::test,
-  use crate::smol::AsyncFileExt;
   use smol::fs;
 }

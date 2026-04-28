@@ -8,6 +8,5 @@ async_file_ext!(File, "tokio::fs::File");
 
 test_mod! {
   tokio::test,
-  use crate::tokio::AsyncFileExt;
   use tokio::fs;
 }

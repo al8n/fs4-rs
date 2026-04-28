@@ -8,6 +8,5 @@ allocate_size!(File);
 
 test_mod! {
   tokio::test,
-  use crate::fs_err3_tokio::AsyncFileExt;
   use fs_err3::tokio as fs;
 }

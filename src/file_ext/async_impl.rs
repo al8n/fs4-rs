@@ -2,88 +2,7 @@ macro_rules! async_file_ext {
     ($file: ty, $file_name: literal) => {
         use std::io::Result;
 
-        #[doc = concat!("Extension trait for `", $file_name, "` which provides allocation and locking methods.")]
-        ///
-        /// ## Notes on File Locks
-        ///
-        /// This library provides whole-file locks in both shared (read) and exclusive
-        /// (read-write) varieties.
-        ///
-        /// File locks are a cross-platform hazard since the file lock APIs exposed by
-        /// operating system kernels vary in subtle and not-so-subtle ways.
-        ///
-        /// The API exposed by this library can be safely used across platforms as long
-        /// as the following rules are followed:
-        ///
-        ///   * Multiple locks should not be created on an individual `File` instance
-        ///     concurrently.
-        ///   * Duplicated files should not be locked without great care.
-        ///   * Files to be locked should be opened with at least read or write
-        ///     permissions.
-        ///   * File locks may only be relied upon to be advisory.
-        ///
-        /// File locks are released automatically when the file handle is closed (for
-        /// example when the owning `File` is dropped), so calling [`AsyncFileExt::unlock`]
-        /// explicitly is optional.
-        ///
-        /// File locks are implemented with
-        /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
-        /// [`LockFileEx`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex)
-        /// on Windows. The `lock_*` and `try_lock_*` methods are synchronous because
-        /// the underlying system calls are blocking. The separate
-        /// [`AsyncFileExt::unlock_async`] method is provided for convenience inside
-        /// async code, but the underlying `unlock` syscall is still blocking.
-        pub trait AsyncFileExt {
-            /// Returns the amount of physical space allocated for a file.
-            fn allocated_size(&self) -> impl core::future::Future<Output = Result<u64>>;
-
-            /// Ensures that at least `len` bytes of disk space are allocated for the
-            /// file. After a successful call to `allocate`, subsequent writes to the
-            /// file within the specified length are guaranteed not to fail because of
-            /// lack of disk space.
-            ///
-            /// On most platforms the file's logical size is also extended to `len`
-            /// bytes. On Windows, if the file's existing cluster-aligned allocation
-            /// already covers `len`, the logical size is left unchanged to work around
-            /// buffered-I/O quirks observed when the end-of-file pointer is moved
-            /// inside an already-allocated cluster.
-            fn allocate(&self, len: u64) -> impl core::future::Future<Output = Result<()>>;
-
-            /// Acquires a shared lock on the file, blocking until the lock can be
-            /// acquired.
-            fn lock_shared(&self) -> Result<()>;
-
-            /// Acquires an exclusive lock on the file, blocking until the lock can be
-            /// acquired. Mirrors [`std::fs::File::lock`].
-            fn lock(&self) -> Result<()>;
-
-            /// Attempts to acquire a shared lock on the file, without blocking.
-            ///
-            /// Returns `Ok(())` if the lock was acquired, or
-            /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
-            /// if the file is currently locked.
-            fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError>;
-
-            /// Attempts to acquire an exclusive lock on the file, without blocking.
-            ///
-            /// Returns `Ok(())` if the lock was acquired, or
-            /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
-            /// if the file is currently locked.
-            fn try_lock(&self) -> std::result::Result<(), crate::TryLockError>;
-
-            /// Releases any lock held on the file. The lock is also released
-            /// automatically when the file handle is closed.
-            fn unlock(&self) -> Result<()>;
-
-            /// Releases any lock held on the file.
-            ///
-            /// **Note:** This method is not truly async; the underlying system call is
-            /// still blocking. It exists for convenience when used from an async
-            /// context.
-            fn unlock_async(&self) -> impl core::future::Future<Output = Result<()>>;
-        }
-
-        impl AsyncFileExt for $file {
+        impl $crate::AsyncFileExt for $file {
             async fn allocated_size(&self) -> Result<u64> {
                 sys::allocated_size(self).await
             }
@@ -98,11 +17,11 @@ macro_rules! async_file_ext {
                 sys::lock(self)
             }
 
-            fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError> {
+            fn try_lock_shared(&self) -> std::result::Result<(), $crate::TryLockError> {
                 sys::try_lock_shared(self)
             }
 
-            fn try_lock(&self) -> std::result::Result<(), crate::TryLockError> {
+            fn try_lock(&self) -> std::result::Result<(), $crate::TryLockError> {
                 sys::try_lock(self)
             }
 
@@ -122,7 +41,8 @@ macro_rules! test_mod {
         #[cfg(test)]
         mod test {
             extern crate tempfile;
-            use crate::{allocation_granularity, TryLockError};
+
+            use crate::{allocation_granularity, TryLockError, AsyncFileExt};
 
             $(
                 $use_stmt

@@ -72,7 +72,7 @@ macro_rules! test_mod {
         mod test {
           extern crate tempfile;
 
-          use crate::TryLockError;
+          use crate::{TryLockError, AsyncFileExt};
 
           $(
               $use_stmt
