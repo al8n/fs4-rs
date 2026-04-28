@@ -49,6 +49,41 @@ macro_rules! test_mod {
                 $use_stmt
             )*
 
+            /// Exercises `impl<F: FileExt + ?Sized> FileExt for &F`. Without this
+            /// every method body in the blanket impl is uncovered, since the
+            /// other tests call methods directly on the concrete file type and
+            /// resolve to `<File as FileExt>::*`.
+            #[test]
+            fn file_ext_blanket_for_ref() {
+                fn drive<F: FileExt + ?Sized>(f: &F, len: u64) {
+                    f.lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.lock().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock().unwrap();
+                    f.unlock().unwrap();
+                    f.allocate(len).unwrap();
+                    let _ = f.allocated_size().unwrap();
+                }
+
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&path)
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                // `&&file` makes the inner `F` bind to `&File`, so all method
+                // calls resolve to the `<&File as FileExt>` blanket impl.
+                drive(&&file, blksize);
+            }
+
             /// Tests shared file lock operations.
             #[test]
             fn lock_shared() {

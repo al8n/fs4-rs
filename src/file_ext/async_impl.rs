@@ -92,6 +92,77 @@ macro_rules! test_mod {
                 $use_stmt
             )*
 
+            /// Exercises `impl<F: AsyncFileExt + ?Sized> AsyncFileExt for &F`.
+            /// The other tests call methods directly on the concrete file type
+            /// and resolve to `<File as AsyncFileExt>::*`, so without this the
+            /// blanket-impl bodies are unreached.
+            #[$annotation]
+            async fn async_file_ext_blanket_for_ref() {
+                async fn drive<F: AsyncFileExt + ?Sized>(f: &F, len: u64) {
+                    f.lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.lock().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock().unwrap();
+                    f.unlock_async().await.unwrap();
+                    f.allocate(len).await.unwrap();
+                    let _ = f.allocated_size().await.unwrap();
+                }
+
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                // `&&file` binds `F = &File`, so calls go through the blanket.
+                drive(&&file, blksize).await;
+            }
+
+            /// Drives every `DynAsyncFileExt` method twice: once on the
+            /// concrete file type to cover the per-backend macro impl, and
+            /// once through `&File` to cover the `for &F` blanket.
+            #[$annotation]
+            async fn dyn_async_file_ext_smoke() {
+                use crate::DynAsyncFileExt;
+
+                async fn drive<F: DynAsyncFileExt + ?Sized>(f: &F, len: u64) {
+                    f.lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.lock().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock().unwrap();
+                    f.unlock_async().await.unwrap();
+                    f.allocate(len).await.unwrap();
+                    let _ = f.allocated_size().await.unwrap();
+                }
+
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&path)
+                    .await
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                // `&file` binds `F = File`, exercising the per-backend impl.
+                drive(&file, blksize).await;
+                // `&&file` binds `F = &File`, exercising the blanket impl.
+                drive(&&file, blksize).await;
+            }
+
             /// Tests shared file lock operations.
             #[$annotation]
             async fn lock_shared() {
