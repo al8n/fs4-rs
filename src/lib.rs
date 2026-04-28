@@ -325,37 +325,37 @@ pub trait FileExt: sealed::Sealed {
 impl<F: FileExt + ?Sized> FileExt for &F {
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn allocated_size(&self) -> Result<u64> {
-    (*self).allocated_size()
+    <F as FileExt>::allocated_size(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn allocate(&self, len: u64) -> Result<()> {
-    (*self).allocate(len)
+    <F as FileExt>::allocate(*self, len)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn lock_shared(&self) -> Result<()> {
-    (*self).lock_shared()
+    <F as FileExt>::lock_shared(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn lock(&self) -> Result<()> {
-    (*self).lock()
+    <F as FileExt>::lock(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn try_lock_shared(&self) -> std::result::Result<(), TryLockError> {
-    (*self).try_lock_shared()
+    <F as FileExt>::try_lock_shared(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn try_lock(&self) -> std::result::Result<(), TryLockError> {
-    (*self).try_lock()
+    <F as FileExt>::try_lock(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn unlock(&self) -> Result<()> {
-    (*self).unlock()
+    <F as FileExt>::unlock(*self)
   }
 }
 
@@ -445,42 +445,42 @@ pub trait AsyncFileExt: sealed::Sealed {
 impl<F: AsyncFileExt + ?Sized> AsyncFileExt for &F {
   #[cfg_attr(not(tarpaulin), inline(always))]
   async fn allocated_size(&self) -> Result<u64> {
-    (*self).allocated_size().await
+    <F as AsyncFileExt>::allocated_size(*self).await
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   async fn allocate(&self, len: u64) -> Result<()> {
-    (*self).allocate(len).await
+    <F as AsyncFileExt>::allocate(*self, len).await
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn lock_shared(&self) -> Result<()> {
-    (*self).lock_shared()
+    <F as AsyncFileExt>::lock_shared(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn lock(&self) -> Result<()> {
-    (*self).lock()
+    <F as AsyncFileExt>::lock(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError> {
-    (*self).try_lock_shared()
+    <F as AsyncFileExt>::try_lock_shared(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn try_lock(&self) -> std::result::Result<(), crate::TryLockError> {
-    (*self).try_lock()
+    <F as AsyncFileExt>::try_lock(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   fn unlock(&self) -> Result<()> {
-    (*self).unlock()
+    <F as AsyncFileExt>::unlock(*self)
   }
 
   #[cfg_attr(not(tarpaulin), inline(always))]
   async fn unlock_async(&self) -> Result<()> {
-    (*self).unlock_async().await
+    <F as AsyncFileExt>::unlock_async(*self).await
   }
 }
 
