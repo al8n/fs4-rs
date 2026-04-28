@@ -1,106 +1,40 @@
 macro_rules! file_ext {
-    ($file:ty, $file_name:literal) => {
-        use std::io::Result;
+  ($file:ty, $file_name:literal) => {
+    use std::io::Result;
 
-        #[doc = concat!("Extension trait for `", $file_name, "` which provides allocation and locking methods.")]
-        ///
-        /// ## Notes on File Locks
-        ///
-        /// This library provides whole-file locks in both shared (read) and exclusive
-        /// (read-write) varieties.
-        ///
-        /// File locks are a cross-platform hazard since the file lock APIs exposed by
-        /// operating system kernels vary in subtle and not-so-subtle ways.
-        ///
-        /// The API exposed by this library can be safely used across platforms as long
-        /// as the following rules are followed:
-        ///
-        ///   * Multiple locks should not be created on an individual `File` instance
-        ///     concurrently.
-        ///   * Duplicated files should not be locked without great care.
-        ///   * Files to be locked should be opened with at least read or write
-        ///     permissions.
-        ///   * File locks may only be relied upon to be advisory.
-        ///
-        /// File locks are released automatically when the file handle is closed (for
-        /// example when the owning `File` is dropped), so calling [`FileExt::unlock`]
-        /// explicitly is optional.
-        ///
-        /// File locks are implemented with
-        /// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
-        /// [`LockFileEx`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex)
-        /// on Windows.
-        pub trait FileExt {
-            /// Returns the amount of physical space allocated for a file.
-            fn allocated_size(&self) -> Result<u64>;
+    impl $crate::sealed::Sealed for $file {}
 
-            /// Ensures that at least `len` bytes of disk space are allocated for the
-            /// file. After a successful call to `allocate`, subsequent writes to the
-            /// file within the specified length are guaranteed not to fail because of
-            /// lack of disk space.
-            ///
-            /// On most platforms the file's logical size is also extended to `len`
-            /// bytes. On Windows, if the file's existing cluster-aligned allocation
-            /// already covers `len`, the logical size is left unchanged to work around
-            /// buffered-I/O quirks observed when the end-of-file pointer is moved
-            /// inside an already-allocated cluster.
-            fn allocate(&self, len: u64) -> Result<()>;
-
-            /// Acquires a shared lock on the file, blocking until the lock can be
-            /// acquired.
-            fn lock_shared(&self) -> Result<()>;
-
-            /// Acquires an exclusive lock on the file, blocking until the lock can be
-            /// acquired.
-            ///
-            /// This is the blocking counterpart of [`FileExt::try_lock`]. It mirrors
-            /// [`std::fs::File::lock`].
-            fn lock(&self) -> Result<()>;
-
-            /// Attempts to acquire a shared lock on the file, without blocking.
-            ///
-            /// Returns `Ok(())` if the lock was acquired, or
-            /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
-            /// if the file is currently locked. Mirrors
-            /// [`std::fs::File::try_lock_shared`].
-            fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError>;
-
-            /// Attempts to acquire an exclusive lock on the file, without blocking.
-            ///
-            /// Returns `Ok(())` if the lock was acquired, or
-            /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
-            /// if the file is currently locked. Mirrors [`std::fs::File::try_lock`].
-            fn try_lock(&self) -> std::result::Result<(), crate::TryLockError>;
-
-            /// Releases any lock held on the file. The lock is also released
-            /// automatically when the file handle is closed.
-            fn unlock(&self) -> Result<()>;
-        }
-
-        impl FileExt for $file {
-            fn allocated_size(&self) -> Result<u64> {
-                sys::allocated_size(self)
-            }
-            fn allocate(&self, len: u64) -> Result<()> {
-                sys::allocate(self, len)
-            }
-            fn lock_shared(&self) -> Result<()> {
-                sys::lock_shared(self)
-            }
-            fn lock(&self) -> Result<()> {
-                sys::lock(self)
-            }
-            fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError> {
-                sys::try_lock_shared(self)
-            }
-            fn try_lock(&self) -> std::result::Result<(), crate::TryLockError> {
-                sys::try_lock(self)
-            }
-            fn unlock(&self) -> Result<()> {
-                sys::unlock(self)
-            }
-        }
+    impl $crate::FileExt for $file {
+      #[cfg_attr(not(tarpaulin), inline(always))]
+      fn allocated_size(&self) -> Result<u64> {
+        sys::allocated_size(self)
+      }
+      #[cfg_attr(not(tarpaulin), inline(always))]
+      fn allocate(&self, len: u64) -> Result<()> {
+        sys::allocate(self, len)
+      }
+      #[cfg_attr(not(tarpaulin), inline(always))]
+      fn lock_shared(&self) -> Result<()> {
+        sys::lock_shared(self)
+      }
+      #[cfg_attr(not(tarpaulin), inline(always))]
+      fn lock(&self) -> Result<()> {
+        sys::lock(self)
+      }
+      #[cfg_attr(not(tarpaulin), inline(always))]
+      fn try_lock_shared(&self) -> std::result::Result<(), $crate::TryLockError> {
+        sys::try_lock_shared(self)
+      }
+      #[cfg_attr(not(tarpaulin), inline(always))]
+      fn try_lock(&self) -> std::result::Result<(), $crate::TryLockError> {
+        sys::try_lock(self)
+      }
+      #[cfg_attr(not(tarpaulin), inline(always))]
+      fn unlock(&self) -> Result<()> {
+        sys::unlock(self)
+      }
     }
+  };
 }
 
 macro_rules! test_mod {
@@ -109,12 +43,46 @@ macro_rules! test_mod {
         mod test {
             extern crate tempfile;
 
-            use super::*;
-            use crate::{allocation_granularity, statvfs, FsStats, TryLockError};
+            use crate::{allocation_granularity, statvfs, FsStats, TryLockError, FileExt};
 
             $(
                 $use_stmt
             )*
+
+            /// Exercises `impl<F: FileExt + ?Sized> FileExt for &F`. Without this
+            /// every method body in the blanket impl is uncovered, since the
+            /// other tests call methods directly on the concrete file type and
+            /// resolve to `<File as FileExt>::*`.
+            #[test]
+            fn file_ext_blanket_for_ref() {
+                fn drive<F: FileExt + ?Sized>(f: &F, len: u64) {
+                    f.lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.lock().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock_shared().unwrap();
+                    f.unlock().unwrap();
+                    f.try_lock().unwrap();
+                    f.unlock().unwrap();
+                    f.allocate(len).unwrap();
+                    let _ = f.allocated_size().unwrap();
+                }
+
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&path)
+                    .unwrap();
+                let blksize = allocation_granularity(&path).unwrap();
+
+                // `&&file` makes the inner `F` bind to `&File`, so all method
+                // calls resolve to the `<&File as FileExt>` blanket impl.
+                drive(&&file, blksize);
+            }
 
             /// Tests shared file lock operations.
             #[test]

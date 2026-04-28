@@ -1,5 +1,36 @@
 # Releases
 
+## 1.1.0
+
+### Changes
+
+- Consolidate `FileExt` and `AsyncFileExt` into single crate-root traits
+  (`fs4::FileExt`, `fs4::AsyncFileExt`) instead of generating a distinct
+  trait per backend module. The per-backend modules (`fs4::tokio`,
+  `fs4::async_std`, `fs4::smol`, `fs4::fs_err2`, `fs4::fs_err3`,
+  `fs4::fs_err2_tokio`, `fs4::fs_err3_tokio`) now re-export the unified
+  crate-root trait. Method-call sites that import the trait via `use`
+  continue to compile unchanged; code that named two backend traits as
+  distinct types will see them unify.
+- Add blanket impls `impl<F: FileExt + ?Sized> FileExt for &F` and
+  `impl<F: AsyncFileExt + ?Sized> AsyncFileExt for &F`, so the
+  extension methods are now callable through shared references.
+- Seal `FileExt` and `AsyncFileExt` via a private `sealed::Sealed`
+  supertrait, so the set of implementing types is closed to the
+  concrete file types fs4 already supports (and references to them).
+  This locks in the freedom to add methods to either trait in future
+  minor releases without breaking downstream impls.
+- Add `DynAsyncFileExt`, an object-safe mirror of `AsyncFileExt` whose
+  async methods return `BoxFuture<'_, T>` (alias for
+  `Pin<Box<dyn Future<Output = T> + Send + '_>>`). Use it whenever
+  type erasure is needed (`Box<dyn DynAsyncFileExt>`,
+  `&dyn DynAsyncFileExt`); prefer the static `AsyncFileExt` for
+  generic code since it has no allocation or dynamic-dispatch
+  overhead. Every type implementing `AsyncFileExt` also implements
+  `DynAsyncFileExt`, and the trait is sealed.
+- Mark the delegating methods `#[inline(always)]` (skipped under
+  `tarpaulin` coverage builds).
+
 ## 1.0.1
 
 ### Fixes

@@ -135,50 +135,46 @@ use windows as sys;
 #[cfg(any(unix, windows))]
 mod file_ext;
 
-#[cfg(all(feature = "sync", any(unix, windows)))]
-#[cfg_attr(docsrs, doc(cfg(feature = "sync")))]
-pub use crate::file_ext::sync_impl::std_impl::FileExt;
-
 #[cfg(all(feature = "fs-err2", any(unix, windows)))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fs-err2")))]
 pub mod fs_err2 {
-  pub use crate::file_ext::sync_impl::fs_err2_impl::FileExt;
+  pub use crate::FileExt;
 }
 
 #[cfg(all(feature = "fs-err3", any(unix, windows)))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fs-err3")))]
 pub mod fs_err3 {
-  pub use crate::file_ext::sync_impl::fs_err3_impl::FileExt;
+  pub use crate::FileExt;
 }
 
 #[cfg(all(feature = "async-std", any(unix, windows)))]
 #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
 pub mod async_std {
-  pub use crate::file_ext::async_impl::async_std_impl::AsyncFileExt;
+  pub use crate::{AsyncFileExt, DynAsyncFileExt};
 }
 
 #[cfg(all(feature = "fs-err2-tokio", any(unix, windows)))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fs-err2-tokio")))]
 pub mod fs_err2_tokio {
-  pub use crate::file_ext::async_impl::fs_err2_tokio_impl::AsyncFileExt;
+  pub use crate::{AsyncFileExt, DynAsyncFileExt};
 }
 
 #[cfg(all(feature = "fs-err3-tokio", any(unix, windows)))]
 #[cfg_attr(docsrs, doc(cfg(feature = "fs-err3-tokio")))]
 pub mod fs_err3_tokio {
-  pub use crate::file_ext::async_impl::fs_err3_tokio_impl::AsyncFileExt;
+  pub use crate::{AsyncFileExt, DynAsyncFileExt};
 }
 
 #[cfg(all(feature = "smol", any(unix, windows)))]
 #[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
 pub mod smol {
-  pub use crate::file_ext::async_impl::smol_impl::AsyncFileExt;
+  pub use crate::{AsyncFileExt, DynAsyncFileExt};
 }
 
 #[cfg(all(feature = "tokio", any(unix, windows)))]
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub mod tokio {
-  pub use crate::file_ext::async_impl::tokio_impl::AsyncFileExt;
+  pub use crate::{AsyncFileExt, DynAsyncFileExt};
 }
 
 mod fs_stats;
@@ -187,7 +183,6 @@ pub use fs_stats::FsStats;
 mod try_lock_error;
 pub use try_lock_error::TryLockError;
 
-#[cfg(any(unix, windows))]
 use std::io::Result;
 #[cfg(any(unix, windows))]
 use std::path::Path;
@@ -242,6 +237,361 @@ where
   P: AsRef<Path>,
 {
   statvfs(path).map(|stat| stat.allocation_granularity)
+}
+
+mod sealed {
+  pub trait Sealed {}
+
+  impl<F: Sealed + ?Sized> Sealed for &F {}
+}
+
+/// Extension trait for file which provides allocation and locking methods.
+///
+/// This trait is sealed and cannot be implemented for types outside of `fs4`.
+///
+/// ## Notes on File Locks
+///
+/// This library provides whole-file locks in both shared (read) and exclusive
+/// (read-write) varieties.
+///
+/// File locks are a cross-platform hazard since the file lock APIs exposed by
+/// operating system kernels vary in subtle and not-so-subtle ways.
+///
+/// The API exposed by this library can be safely used across platforms as long
+/// as the following rules are followed:
+///
+///   * Multiple locks should not be created on an individual `File` instance
+///     concurrently.
+///   * Duplicated files should not be locked without great care.
+///   * Files to be locked should be opened with at least read or write
+///     permissions.
+///   * File locks may only be relied upon to be advisory.
+///
+/// File locks are released automatically when the file handle is closed (for
+/// example when the owning `File` is dropped), so calling [`FileExt::unlock`]
+/// explicitly is optional.
+///
+/// File locks are implemented with
+/// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
+/// [`LockFileEx`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex)
+/// on Windows.
+pub trait FileExt: sealed::Sealed {
+  /// Returns the amount of physical space allocated for a file.
+  fn allocated_size(&self) -> Result<u64>;
+
+  /// Ensures that at least `len` bytes of disk space are allocated for the
+  /// file. After a successful call to `allocate`, subsequent writes to the
+  /// file within the specified length are guaranteed not to fail because of
+  /// lack of disk space.
+  ///
+  /// On most platforms the file's logical size is also extended to `len`
+  /// bytes. On Windows, if the file's existing cluster-aligned allocation
+  /// already covers `len`, the logical size is left unchanged to work around
+  /// buffered-I/O quirks observed when the end-of-file pointer is moved
+  /// inside an already-allocated cluster.
+  fn allocate(&self, len: u64) -> Result<()>;
+
+  /// Acquires a shared lock on the file, blocking until the lock can be
+  /// acquired.
+  fn lock_shared(&self) -> Result<()>;
+
+  /// Acquires an exclusive lock on the file, blocking until the lock can be
+  /// acquired.
+  ///
+  /// This is the blocking counterpart of [`FileExt::try_lock`]. It mirrors
+  /// [`std::fs::File::lock`].
+  fn lock(&self) -> Result<()>;
+
+  /// Attempts to acquire a shared lock on the file, without blocking.
+  ///
+  /// Returns `Ok(())` if the lock was acquired, or
+  /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+  /// if the file is currently locked. Mirrors
+  /// [`std::fs::File::try_lock_shared`].
+  fn try_lock_shared(&self) -> std::result::Result<(), TryLockError>;
+
+  /// Attempts to acquire an exclusive lock on the file, without blocking.
+  ///
+  /// Returns `Ok(())` if the lock was acquired, or
+  /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+  /// if the file is currently locked. Mirrors [`std::fs::File::try_lock`].
+  fn try_lock(&self) -> std::result::Result<(), TryLockError>;
+
+  /// Releases any lock held on the file. The lock is also released
+  /// automatically when the file handle is closed.
+  fn unlock(&self) -> Result<()>;
+}
+
+impl<F: FileExt + ?Sized> FileExt for &F {
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn allocated_size(&self) -> Result<u64> {
+    <F as FileExt>::allocated_size(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn allocate(&self, len: u64) -> Result<()> {
+    <F as FileExt>::allocate(*self, len)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn lock_shared(&self) -> Result<()> {
+    <F as FileExt>::lock_shared(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn lock(&self) -> Result<()> {
+    <F as FileExt>::lock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn try_lock_shared(&self) -> std::result::Result<(), TryLockError> {
+    <F as FileExt>::try_lock_shared(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn try_lock(&self) -> std::result::Result<(), TryLockError> {
+    <F as FileExt>::try_lock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn unlock(&self) -> Result<()> {
+    <F as FileExt>::unlock(*self)
+  }
+}
+
+/// Extension trait for file which provides allocation and locking methods.
+///
+/// ## Notes on File Locks
+///
+/// This library provides whole-file locks in both shared (read) and exclusive
+/// (read-write) varieties.
+///
+/// File locks are a cross-platform hazard since the file lock APIs exposed by
+/// operating system kernels vary in subtle and not-so-subtle ways.
+///
+/// The API exposed by this library can be safely used across platforms as long
+/// as the following rules are followed:
+///
+///   * Multiple locks should not be created on an individual `File` instance
+///     concurrently.
+///   * Duplicated files should not be locked without great care.
+///   * Files to be locked should be opened with at least read or write
+///     permissions.
+///   * File locks may only be relied upon to be advisory.
+///
+/// File locks are released automatically when the file handle is closed (for
+/// example when the owning `File` is dropped), so calling [`AsyncFileExt::unlock`]
+/// explicitly is optional.
+///
+/// File locks are implemented with
+/// [`flock(2)`](http://man7.org/linux/man-pages/man2/flock.2.html) on Unix and
+/// [`LockFileEx`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex)
+/// on Windows. The `lock_*` and `try_lock_*` methods are synchronous because
+/// the underlying system calls are blocking. The separate
+/// [`AsyncFileExt::unlock_async`] method is provided for convenience inside
+/// async code, but the underlying `unlock` syscall is still blocking.
+///
+/// This trait is sealed and cannot be implemented for types outside of `fs4`.
+pub trait AsyncFileExt: sealed::Sealed {
+  /// Returns the amount of physical space allocated for a file.
+  fn allocated_size(&self) -> impl core::future::Future<Output = Result<u64>>;
+
+  /// Ensures that at least `len` bytes of disk space are allocated for the
+  /// file. After a successful call to `allocate`, subsequent writes to the
+  /// file within the specified length are guaranteed not to fail because of
+  /// lack of disk space.
+  ///
+  /// On most platforms the file's logical size is also extended to `len`
+  /// bytes. On Windows, if the file's existing cluster-aligned allocation
+  /// already covers `len`, the logical size is left unchanged to work around
+  /// buffered-I/O quirks observed when the end-of-file pointer is moved
+  /// inside an already-allocated cluster.
+  fn allocate(&self, len: u64) -> impl core::future::Future<Output = Result<()>>;
+
+  /// Acquires a shared lock on the file, blocking until the lock can be
+  /// acquired.
+  fn lock_shared(&self) -> Result<()>;
+
+  /// Acquires an exclusive lock on the file, blocking until the lock can be
+  /// acquired. Mirrors [`std::fs::File::lock`].
+  fn lock(&self) -> Result<()>;
+
+  /// Attempts to acquire a shared lock on the file, without blocking.
+  ///
+  /// Returns `Ok(())` if the lock was acquired, or
+  /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+  /// if the file is currently locked.
+  fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError>;
+
+  /// Attempts to acquire an exclusive lock on the file, without blocking.
+  ///
+  /// Returns `Ok(())` if the lock was acquired, or
+  /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+  /// if the file is currently locked.
+  fn try_lock(&self) -> std::result::Result<(), crate::TryLockError>;
+
+  /// Releases any lock held on the file. The lock is also released
+  /// automatically when the file handle is closed.
+  fn unlock(&self) -> Result<()>;
+
+  /// Releases any lock held on the file.
+  ///
+  /// **Note:** This method is not truly async; the underlying system call is
+  /// still blocking. It exists for convenience when used from an async
+  /// context.
+  fn unlock_async(&self) -> impl core::future::Future<Output = Result<()>>;
+}
+
+impl<F: AsyncFileExt + ?Sized> AsyncFileExt for &F {
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  async fn allocated_size(&self) -> Result<u64> {
+    <F as AsyncFileExt>::allocated_size(*self).await
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  async fn allocate(&self, len: u64) -> Result<()> {
+    <F as AsyncFileExt>::allocate(*self, len).await
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn lock_shared(&self) -> Result<()> {
+    <F as AsyncFileExt>::lock_shared(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn lock(&self) -> Result<()> {
+    <F as AsyncFileExt>::lock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError> {
+    <F as AsyncFileExt>::try_lock_shared(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn try_lock(&self) -> std::result::Result<(), crate::TryLockError> {
+    <F as AsyncFileExt>::try_lock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn unlock(&self) -> Result<()> {
+    <F as AsyncFileExt>::unlock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  async fn unlock_async(&self) -> Result<()> {
+    <F as AsyncFileExt>::unlock_async(*self).await
+  }
+}
+
+/// A heap-allocated, dynamically-typed `Send` future used by
+/// [`DynAsyncFileExt`] to keep its methods object-safe.
+pub type BoxFuture<'a, T> = core::pin::Pin<Box<dyn core::future::Future<Output = T> + Send + 'a>>;
+
+/// Object-safe variant of [`AsyncFileExt`] returning boxed `Send` futures, so
+/// it can be used behind a trait object (e.g. `Box<dyn DynAsyncFileExt>` or
+/// `&dyn DynAsyncFileExt`).
+///
+/// [`AsyncFileExt`] uses return-position `impl Future`, which is not
+/// object-safe; this trait wraps the same operations behind
+/// [`BoxFuture`]s so the trait *can* be used as a trait object. Every type
+/// that implements [`AsyncFileExt`] also implements `DynAsyncFileExt`.
+///
+/// Prefer [`AsyncFileExt`] for generic code (no allocation, no dynamic
+/// dispatch); reach for `DynAsyncFileExt` only when type erasure is
+/// required.
+///
+/// This trait is sealed and cannot be implemented for types outside of `fs4`.
+pub trait DynAsyncFileExt: sealed::Sealed {
+  /// Returns the amount of physical space allocated for a file.
+  fn allocated_size(&self) -> BoxFuture<'_, Result<u64>>;
+
+  /// Ensures that at least `len` bytes of disk space are allocated for the
+  /// file. After a successful call to `allocate`, subsequent writes to the
+  /// file within the specified length are guaranteed not to fail because of
+  /// lack of disk space.
+  ///
+  /// On most platforms the file's logical size is also extended to `len`
+  /// bytes. On Windows, if the file's existing cluster-aligned allocation
+  /// already covers `len`, the logical size is left unchanged to work around
+  /// buffered-I/O quirks observed when the end-of-file pointer is moved
+  /// inside an already-allocated cluster.
+  fn allocate(&self, len: u64) -> BoxFuture<'_, Result<()>>;
+
+  /// Acquires a shared lock on the file, blocking until the lock can be
+  /// acquired.
+  fn lock_shared(&self) -> Result<()>;
+
+  /// Acquires an exclusive lock on the file, blocking until the lock can be
+  /// acquired. Mirrors [`std::fs::File::lock`].
+  fn lock(&self) -> Result<()>;
+
+  /// Attempts to acquire a shared lock on the file, without blocking.
+  ///
+  /// Returns `Ok(())` if the lock was acquired, or
+  /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+  /// if the file is currently locked.
+  fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError>;
+
+  /// Attempts to acquire an exclusive lock on the file, without blocking.
+  ///
+  /// Returns `Ok(())` if the lock was acquired, or
+  /// `Err(`[`TryLockError::WouldBlock`](crate::TryLockError::WouldBlock)`)`
+  /// if the file is currently locked.
+  fn try_lock(&self) -> std::result::Result<(), crate::TryLockError>;
+
+  /// Releases any lock held on the file. The lock is also released
+  /// automatically when the file handle is closed.
+  fn unlock(&self) -> Result<()>;
+
+  /// Releases any lock held on the file.
+  ///
+  /// **Note:** This method is not truly async; the underlying system call is
+  /// still blocking. It exists for convenience when used from an async
+  /// context.
+  fn unlock_async(&self) -> BoxFuture<'_, Result<()>>;
+}
+
+impl<F: DynAsyncFileExt + ?Sized> DynAsyncFileExt for &F {
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn allocated_size(&self) -> BoxFuture<'_, Result<u64>> {
+    <F as DynAsyncFileExt>::allocated_size(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn allocate(&self, len: u64) -> BoxFuture<'_, Result<()>> {
+    <F as DynAsyncFileExt>::allocate(*self, len)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn lock_shared(&self) -> Result<()> {
+    <F as DynAsyncFileExt>::lock_shared(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn lock(&self) -> Result<()> {
+    <F as DynAsyncFileExt>::lock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn try_lock_shared(&self) -> std::result::Result<(), crate::TryLockError> {
+    <F as DynAsyncFileExt>::try_lock_shared(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn try_lock(&self) -> std::result::Result<(), crate::TryLockError> {
+    <F as DynAsyncFileExt>::try_lock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn unlock(&self) -> Result<()> {
+    <F as DynAsyncFileExt>::unlock(*self)
+  }
+
+  #[cfg_attr(not(tarpaulin), inline(always))]
+  fn unlock_async(&self) -> BoxFuture<'_, Result<()>> {
+    <F as DynAsyncFileExt>::unlock_async(*self)
+  }
 }
 
 #[cfg(all(test, any(unix, windows)))]
